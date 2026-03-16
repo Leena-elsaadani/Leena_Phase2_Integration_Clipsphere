@@ -7,7 +7,6 @@ import userRoutes from "./routes/user.routes.js";
 const app = express();
 
 app.use(express.json());
-
 app.use(loggerMiddleware);
 
 app.get("/", (req, res) => {
@@ -15,8 +14,9 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRoutes);
-
-app.use(errorMiddleware);
 app.use("/users", userRoutes);
+
+// errorMiddleware must be last
+app.use(errorMiddleware);
 
 export default app;
