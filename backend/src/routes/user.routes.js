@@ -1,5 +1,5 @@
 import express from "express";
-import authMiddleware from "../middleware/auth.middleware.js";
+import { protect } from "../middleware/auth.middleware.js";
 import {
   getMe,
   updateMe,
@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 
 // All user routes require authentication
-router.use(authMiddleware);
+router.use(protect);
 
 // Profile
 router.get("/me", getMe);

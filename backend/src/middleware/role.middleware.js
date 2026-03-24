@@ -10,4 +10,4 @@ const roleMiddleware = (roles) => {
   };
 };
 
-export default roleMiddleware;
+export const restrictTo = roleMiddleware;
