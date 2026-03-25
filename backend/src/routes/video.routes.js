@@ -50,3 +50,43 @@ router.post(
 );
 
 export default router;
+
+/**
+ * @swagger
+ * /api/v1/videos:
+ *   get:
+ *     summary: Get all public videos
+ *     tags: [Videos]
+ *     responses:
+ *       200:
+ *         description: List of videos
+ *       500:
+ *         description: Server error
+ *   post:
+ *     summary: Create a new video (requires auth)
+ *     tags: [Videos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               duration:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Video created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/', getAllVideos);
+router.post('/', protect, validate(createVideoSchema), createVideo);

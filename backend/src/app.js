@@ -2,18 +2,23 @@
 import express from 'express';
 import loggerMiddleware from './middleware/logger.middleware.js';
 import errorMiddleware from './middleware/error.middleware.js';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './docs/swagger.js';
 
 // Route imports
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
-import videoRoutes from './routes/video.routes.js';      // ← YOUR ROUTES
-import adminRoutes from './routes/admin.routes.js';      // ← YOUR ROUTES
+import videoRoutes from './routes/video.routes.js';      
+import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 app.use(loggerMiddleware);
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Health check
 app.get('/', (req, res) => {
