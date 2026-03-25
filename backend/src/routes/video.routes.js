@@ -49,8 +49,6 @@ router.post(
   createReview
 );
 
-export default router;
-
 /**
  * @swagger
  * /api/v1/videos:
@@ -88,5 +86,5 @@ export default router;
  *       401:
  *         description: Unauthorized
  */
-router.get('/', getAllVideos);
-router.post('/', protect, validate(createVideoSchema), createVideo);
+
+export default router;

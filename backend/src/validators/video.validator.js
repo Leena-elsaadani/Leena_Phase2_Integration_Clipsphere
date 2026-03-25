@@ -1,4 +1,13 @@
 // src/validators/video.validator.js
+/**
+ * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
 import { z } from 'zod';
 
 // ==================== CREATE VIDEO ====================
@@ -56,5 +65,31 @@ const createReviewSchema = z.object({
     .optional(),
 });
 
+// ==================== REGISTER SCHEMA ====================
+const registerSchema = z.object({
+  username: z
+    .string({ required_error: 'Username is required' })
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username cannot exceed 30 characters')
+    .trim(),
+  email: z
+    .string({ required_error: 'Email is required' })
+    .email('Invalid email format')
+    .toLowerCase(),
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(8, 'Password must be at least 8 characters')
+});
+
+// ==================== LOGIN SCHEMA ====================
+const loginSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .email('Invalid email format')
+    .toLowerCase(),
+  password: z
+    .string({ required_error: 'Password is required' })
+});
+
 // ES6 exports
-export { createVideoSchema, updateVideoSchema, createReviewSchema };
+export { createVideoSchema, updateVideoSchema, createReviewSchema, registerSchema, loginSchema };

@@ -49,6 +49,15 @@ const userSchema = new mongoose.Schema(
     notificationPreferences: {
       type: notificationPreferencesSchema,
       default: () => ({})
+    },
+    active: {
+      type: Boolean,
+      default: true
+    },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'suspended', 'banned'],
+      default: 'active'
     }
   },
   { timestamps: true }

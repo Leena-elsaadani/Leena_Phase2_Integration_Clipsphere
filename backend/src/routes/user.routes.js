@@ -12,7 +12,56 @@ import {
 
 const router = express.Router();
 
-// All user routes require authentication
+/**
+ * @swagger
+ * /api/v1/users/me:
+ *   get:
+ *     summary: Get current authenticated user's profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/v1/users/{id}/followers:
+ *   get:
+ *     summary: Get list of followers for a user (public)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Followers list
+ */
+
+/**
+ * @swagger
+ * /api/v1/users/{id}/following:
+ *   get:
+ *     summary: Get list of users that a user follows (public)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Following list
+ */
+
+// Public routes - no auth required
+router.get("/:id/followers", getFollowers);
+router.get("/:id/following", getFollowing);
+
+// All routes below require authentication
 router.use(protect);
 
 // Profile
@@ -20,13 +69,11 @@ router.get("/me", getMe);
 router.patch("/updateMe", updateMe);
 
 // Notification preferences
-// NOTE: this must be defined before /:id routes to avoid "me" being treated as an id
 router.patch("/me/notifications", updateNotificationPreferences);
+router.patch("/preferences", updateNotificationPreferences);
 
 // Social graph
 router.post("/:id/follow", followUser);
 router.delete("/:id/follow", unfollowUser);
-router.get("/:id/followers", getFollowers);
-router.get("/:id/following", getFollowing);
 
 export default router;

@@ -1,5 +1,6 @@
 // src/app.js
 import express from 'express';
+import mongoSanitize from 'express-mongo-sanitize';
 import loggerMiddleware from './middleware/logger.middleware.js';
 import errorMiddleware from './middleware/error.middleware.js';
 import swaggerUi from 'swagger-ui-express';
@@ -15,6 +16,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(mongoSanitize());
 app.use(loggerMiddleware);
 
 // Swagger Documentation
@@ -27,6 +29,10 @@ app.get('/', (req, res) => {
     message: 'ClipSphere API is running',
     version: '1.0.0'
   });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
 });
 
 // === API v1 ROUTES ===
