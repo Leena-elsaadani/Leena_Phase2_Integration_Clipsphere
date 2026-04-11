@@ -1,5 +1,5 @@
 import express from "express";
-import { register, login } from "../controllers/auth.controller.js";
+import { register, login, logout } from "../controllers/auth.controller.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { registerSchema, loginSchema } from "../validators/video.validator.js";
 
@@ -44,5 +44,17 @@ router.post("/register", validate(registerSchema), register);
  *         description: Invalid credentials
  */
 router.post("/login", validate(loginSchema), login);
+
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   post:
+ *     summary: Logout and clear JWT cookie
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
+router.post("/logout", logout);
 
 export default router;
