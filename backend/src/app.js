@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 // import videoRoutes from './routes/video.routes.js';
 // import adminRoutes from './routes/admin.routes.js';
+import likeRoutes from './routes/like.routes.js';
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 // app.use('/api/v1/videos', videoRoutes);
 // app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/videos', likeRoutes);
 
 app.use(errorMiddleware);
 
