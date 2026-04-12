@@ -8,6 +8,10 @@ export const likeVideo = async (videoId, userId) => {
 
   try {
     await Like.create({ user: userId, video: videoId });
+
+    // +10 to trendingScore on like
+    await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 10 } });
+
     return { message: 'Video liked successfully' };
   } catch (error) {
     if (error.code === 11000) {
@@ -20,6 +24,10 @@ export const likeVideo = async (videoId, userId) => {
 export const unlikeVideo = async (videoId, userId) => {
   const like = await Like.findOneAndDelete({ user: userId, video: videoId });
   if (!like) throw new ApiError(404, 'You have not liked this video');
+
+  // -10 from trendingScore on unlike
+  await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -10 } });
+
   return { message: 'Video unliked successfully' };
 };
 
