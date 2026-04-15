@@ -30,6 +30,12 @@ export default function Home() {
   const [likedVideos, setLikedVideos] = useState<Set<number>>(new Set());
   const heroRef = useRef<HTMLDivElement>(null);
 
+  const [commentCount, setCommentCount] = useState<number | null>(null);
+
+useEffect(() => {
+  setCommentCount(Math.floor(Math.random() * 900 + 100));
+}, []);
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
@@ -42,90 +48,12 @@ export default function Home() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+
+    
   };
 
   return (
     <div style={{ backgroundColor: '#0d0d0d', minHeight: '100vh', fontFamily: "'Syne', sans-serif" }}>
-
-      {/* Google Font */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0d0d0d; }
-        ::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 2px; }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-12px); }
-        }
-        @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 20px rgba(139,92,246,0.3); }
-          50% { box-shadow: 0 0 40px rgba(139,92,246,0.7), 0 0 60px rgba(236,72,153,0.3); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes scanline {
-          0% { top: -10%; }
-          100% { top: 110%; }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
-        .animate-slide-in { animation: slideIn 0.8s ease forwards; }
-        .hero-text {
-          background: linear-gradient(135deg, #ffffff 0%, #8b5cf6 40%, #ec4899 70%, #ffffff 100%);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shimmer 4s linear infinite;
-        }
-        .card-hover {
-          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .card-hover:hover {
-          transform: translateY(-8px) scale(1.02);
-        }
-        .glow-btn {
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-        .glow-btn::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, #8b5cf6, #ec4899);
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-        .glow-btn:hover::before { opacity: 1; }
-        .glow-btn:hover { box-shadow: 0 0 30px rgba(139,92,246,0.6), 0 0 60px rgba(236,72,153,0.3); transform: scale(1.05); }
-        .noise-overlay {
-          position: fixed;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-          pointer-events: none;
-          z-index: 1;
-        }
-        .category-pill {
-          transition: all 0.3s ease;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .category-pill:hover { transform: scale(1.05); }
-      `}</style>
 
       {/* Noise texture overlay */}
       <div className="noise-overlay" />
@@ -508,7 +436,7 @@ export default function Home() {
                         color: '#6b7280', fontSize: '0.8rem',
                         fontFamily: "'DM Sans', sans-serif",
                       }}>
-                        💬 {Math.floor(Math.random() * 900 + 100)}
+                        💬 💬 {commentCount ?? 0}
                       </button>
                     </div>
 

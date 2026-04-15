@@ -1,9 +1,10 @@
 import express from 'express';
-import { createVideo, getAllVideos, updateVideo, deleteVideo, createReview } from '../controllers/video.controller.js';
+import { uploadVideo_controller, getAllVideos, getFollowingFeed_controller, getTrendingFeed_controller, updateVideo, deleteVideo, createReview } from '../controllers/video.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import { restrictTo } from '../middleware/role.middleware.js';
 import ownershipMiddleware from '../middleware/ownership.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { uploadSingle, validateVideoDuration } from '../middleware/videoUpload.js';
 import {
   createVideoSchema,
   updateVideoSchema,
@@ -18,10 +19,11 @@ router.get('/', getAllVideos);
 
 // Protected routes must be logged in
 router.post(
-  '/',
+  '/upload',
   protect,                          // 1. Check JWT
-  validate(createVideoSchema),      // 2. Validate the body with Zod
-  createVideo                       // 3. Create the video
+  uploadSingle,                     // 2. Parse multipart form-data
+  validateVideoDuration,            // 3. Validate video duration
+  uploadVideo_controller            // 4. Upload video
 );
 
 router.patch(
