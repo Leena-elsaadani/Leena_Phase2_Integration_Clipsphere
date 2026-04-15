@@ -1,10 +1,13 @@
 import dotenv from "dotenv";
-dotenv.config();
-// src/server.js
-import app from './app.js';
-import mongoose from 'mongoose';
-import config from './config/env.js';
-import connectDB from './config/db.js';
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Dynamic imports after dotenv.config()
+const app = (await import('./app.js')).default;
+const connectDB = (await import('./config/db.js')).default;
 
 const PORT = process.env.PORT || 5000;
 
