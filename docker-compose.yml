@@ -24,8 +24,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Web console
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -39,7 +39,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # ─── MinIO bucket bootstrap (runs once, creates "videos" bucket) ────────────
+  # ─── MinIO bucket bootstrap ────────────────────────────────────────────────
   minio_init:
     image: minio/mc:latest
     container_name: clipsphere_minio_init
@@ -65,8 +65,16 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-    env_file:
-      - ./backend/.env
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/clipsphere
+      JWT_SECRET: your-secret
+
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_REGION: us-east-1
+      
     depends_on:
       - mongo
       - minio
@@ -85,8 +93,6 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    env_file:
-      - ./frontend/.env.local
     depends_on:
       - backend
     networks:
