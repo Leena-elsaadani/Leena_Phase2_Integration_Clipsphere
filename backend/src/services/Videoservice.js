@@ -46,19 +46,20 @@ async function uploadVideo({
   // 2. Upload to MinIO first
   await uploadBuffer(objectKey, buffer, videoMeta.mimeType);
 
-  // 3. Save metadata to MongoDB
+  // 3. Save metadata to MongoDB (fields aligned with models/video.model.js)
+  const status = visibility === "private" ? "private" : "public";
+
   let video;
   try {
     video = await Video.create({
-      uploader: uploaderId,
+      owner: uploaderId,
       title,
-      description,
-      tags: tags || [],
-      visibility: visibility || "public",
-      objectKey,
+      description: description || "",
+      videoKey: objectKey,
       duration: videoMeta.duration,
-      fileSizeBytes: videoMeta.fileSizeBytes,
-      mimeType: videoMeta.mimeType,
+      status,
+      viewsCount: 0,
+      trendingScore: 0,
     });
   } catch (dbErr) {
     // Rollback: remove the already-uploaded MinIO object
@@ -78,13 +79,13 @@ async function uploadVideo({
  */
 async function getPublicFeed(limit = 10, skip = 0) {
   const [videos, total] = await Promise.all([
-    Video.find({ visibility: "public" })
+    Video.find({ status: "public" })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("uploader", "username avatar")
+      .populate("owner", "username avatarUrl")
       .lean(),
-    Video.countDocuments({ visibility: "public" }),
+    Video.countDocuments({ status: "public" }),
   ]);
   return { videos, total };
 }
@@ -96,16 +97,19 @@ async function getPublicFeed(limit = 10, skip = 0) {
  * @param {number}   skip
  */
 async function getFollowingFeed(followingIds = [], limit = 10, skip = 0) {
+  if (!followingIds.length) {
+    return { videos: [], total: 0 };
+  }
   const filter = {
-    visibility: "public",
-    uploader: { $in: followingIds },
+    status: "public",
+    owner: { $in: followingIds },
   };
   const [videos, total] = await Promise.all([
     Video.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("uploader", "username avatar")
+      .populate("owner", "username avatarUrl")
       .lean(),
     Video.countDocuments(filter),
   ]);
@@ -119,23 +123,23 @@ async function getFollowingFeed(followingIds = [], limit = 10, skip = 0) {
  */
 async function getTrendingFeed(limit = 10, skip = 0) {
   const [videos, total] = await Promise.all([
-    Video.find({ visibility: "public" })
-      .sort({ engagementScore: -1, createdAt: -1 })
+    Video.find({ status: "public" })
+      .sort({ trendingScore: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("uploader", "username avatar")
+      .populate("owner", "username avatarUrl")
       .lean(),
-    Video.countDocuments({ visibility: "public" }),
+    Video.countDocuments({ status: "public" }),
   ]);
   return { videos, total };
 }
 
 /**
- * Get a presigned download URL for a video's objectKey.
- * @param {string} objectKey
+ * Get a presigned download URL for a MinIO object key (stored as videoKey on the Video doc).
+ * @param {string} storageKey
  */
-async function generateVideoURL(objectKey) {
-  return generateDownloadURL(objectKey);
+async function generateVideoURL(storageKey) {
+  return generateDownloadURL(storageKey);
 }
 
 export {

@@ -85,7 +85,7 @@ export default function UploadPage() {
     try {
       await videoApi.uploadVideo(formData, setProgress);
       setSuccess(true);
-      setTimeout(() => router.push("/"), 2000);
+      setTimeout(() => router.push("/feed"), 2000);
     } catch (err) {
       setError(err.message);
     } finally {

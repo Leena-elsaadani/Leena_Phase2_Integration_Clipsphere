@@ -2,55 +2,67 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { videoApi } from '@/lib/api';
 
-const VIDEOS = [
-  { id: 1, title: 'Neon City Nights', creator: '@shadowlens', views: '2.4M', likes: '180K', category: 'Trending' },
-  { id: 2, title: 'Desert Storm', creator: '@mirage_fx', views: '1.1M', likes: '94K', category: 'For You' },
-  { id: 3, title: 'Ocean Drift', creator: '@deepblue', views: '3.2M', likes: '210K', category: 'Trending' },
-  { id: 4, title: 'Urban Echoes', creator: '@streetvibe', views: '870K', likes: '67K', category: 'For You' },
-  { id: 5, title: 'Skyline Rush', creator: '@altitudex', views: '1.5M', likes: '120K', category: 'Trending' },
-  { id: 6, title: 'Forest Dream', creator: '@natureeye', views: '990K', likes: '88K', category: 'For You' },
-];
+function formatDuration(secs: number) {
+  if (!secs || Number.isNaN(secs)) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatViewsHome(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 
 const CATEGORIES = ['🔥 Trending', '🎯 For You', '🎬 Cinema', '🎵 Music', '🌍 Travel', '⚡ Action'];
 
-const GRADIENTS = [
-  'from-purple-900 via-purple-800 to-pink-900',
-  'from-pink-900 via-rose-800 to-purple-900',
-  'from-indigo-900 via-purple-800 to-pink-800',
-  'from-violet-900 via-purple-700 to-fuchsia-900',
-  'from-fuchsia-900 via-pink-800 to-purple-900',
-  'from-purple-800 via-indigo-900 to-violet-900',
-];
-
 export default function Home() {
-  const [scrolled, setScrolled] = useState(false);
   const [activeCategory, setActiveCategory] = useState('🔥 Trending');
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const [likedVideos, setLikedVideos] = useState<Set<number>>(new Set());
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  const [commentCount, setCommentCount] = useState<number | null>(null);
-
-useEffect(() => {
-  setCommentCount(Math.floor(Math.random() * 900 + 100));
-}, []);
+  const [feedVideos, setFeedVideos] = useState<
+    {
+      _id: string;
+      title: string;
+      duration?: number;
+      viewsCount?: number;
+      views?: number;
+      owner?: { username?: string };
+      uploader?: { username?: string };
+      createdAt?: string;
+    }[]
+  >([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    let cancelled = false;
+    setFeedLoading(true);
+    setFeedError(null);
+    videoApi
+      .getFeed(8, 0)
+      .then((res) => {
+        if (!cancelled) {
+          setFeedVideos(res.data?.videos ?? []);
+        }
+      })
+      .catch((err: Error) => {
+        if (!cancelled) {
+          setFeedError(err.message || 'Could not load videos');
+          setFeedVideos([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFeedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const toggleLike = (id: number) => {
-    setLikedVideos(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-    
-  };
 
   return (
     <div style={{ backgroundColor: '#0d0d0d', minHeight: '100vh', fontFamily: "'Syne', sans-serif" }}>
@@ -71,64 +83,6 @@ useEffect(() => {
         borderRadius: '50%', pointerEvents: 'none', zIndex: 0,
         filter: 'blur(60px)',
       }} />
-
-      {/* ═══ NAVBAR ═══ */}
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        padding: '1rem 2rem',
-        backgroundColor: scrolled ? 'rgba(13,13,13,0.95)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(20px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(139,92,246,0.15)' : 'none',
-        transition: 'all 0.4s ease',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '8px',
-            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(139,92,246,0.5)',
-          }}>
-            <span style={{ color: 'white', fontWeight: '800', fontSize: '14px' }}>C</span>
-          </div>
-          <span style={{
-            fontFamily: "'Syne', sans-serif", fontWeight: '800', fontSize: '1.2rem',
-            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>ClipSphere</span>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <Link href="/login" style={{
-            padding: '0.5rem 1.25rem', borderRadius: '100px',
-            border: '1px solid rgba(139,92,246,0.4)', color: '#f9fafb',
-            textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500',
-            fontFamily: "'DM Sans', sans-serif",
-            transition: 'all 0.3s ease',
-          }}
-            onMouseEnter={e => {
-              (e.target as HTMLElement).style.borderColor = '#8b5cf6';
-              (e.target as HTMLElement).style.boxShadow = '0 0 15px rgba(139,92,246,0.3)';
-            }}
-            onMouseLeave={e => {
-              (e.target as HTMLElement).style.borderColor = 'rgba(139,92,246,0.4)';
-              (e.target as HTMLElement).style.boxShadow = 'none';
-            }}
-          >
-            Login
-          </Link>
-          <Link href="/register" className="glow-btn" style={{
-            padding: '0.5rem 1.25rem', borderRadius: '100px',
-            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-            color: 'white', textDecoration: 'none',
-            fontSize: '0.875rem', fontWeight: '600',
-            fontFamily: "'DM Sans', sans-serif",
-          }}>
-            Get Started
-          </Link>
-        </div>
-      </nav>
 
       {/* ═══ HERO SECTION ═══ */}
       <section ref={heroRef} style={{
@@ -215,19 +169,23 @@ useEffect(() => {
             }}>
               Start Creating ↗
             </Link>
-            <button style={{
-              padding: '0.875rem 2rem', borderRadius: '100px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#f9fafb', cursor: 'pointer',
-              fontSize: '1rem', fontWeight: '500',
-              fontFamily: "'DM Sans', sans-serif",
-              backdropFilter: 'blur(10px)',
-              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              transition: 'all 0.3s ease',
-            }}>
-              ▶ Watch Demo
-            </button>
+            <Link
+              href="/feed"
+              style={{
+                padding: '0.875rem 2rem', borderRadius: '100px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#f9fafb', cursor: 'pointer',
+                fontSize: '1rem', fontWeight: '500',
+                fontFamily: "'DM Sans', sans-serif",
+                backdropFilter: 'blur(10px)',
+                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                transition: 'all 0.3s ease',
+                textDecoration: 'none',
+              }}
+            >
+              ▶ Watch feed
+            </Link>
           </div>
 
           {/* Stats */}
@@ -300,182 +258,168 @@ useEffect(() => {
                 color: '#f9fafb', fontWeight: '800', fontSize: '1.5rem',
                 fontFamily: "'Syne', sans-serif",
               }}>
-                {activeCategory}
+                Latest from the community
               </h2>
             </div>
-            <button style={{
-              color: '#8b5cf6', background: 'none', border: 'none',
-              cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600',
-              fontFamily: "'DM Sans', sans-serif",
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
-            }}>
+            <Link
+              href="/feed"
+              style={{
+                color: '#8b5cf6', background: 'none', border: 'none',
+                cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600',
+                fontFamily: "'DM Sans', sans-serif",
+                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                textDecoration: 'none',
+              }}
+            >
               See all →
-            </button>
+            </Link>
           </div>
 
-          {/* Dynamic grid */}
+          {feedError && (
+            <p style={{ color: '#f87171', fontSize: '0.875rem', marginBottom: '1rem', fontFamily: "'DM Sans', sans-serif" }}>
+              {feedError}
+            </p>
+          )}
+
+          {feedLoading && (
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem', fontFamily: "'DM Sans', sans-serif" }}>
+              Loading videos…
+            </p>
+          )}
+
+          {/* Dynamic grid — data from GET /api/v1/videos */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '1.25rem',
           }}>
-            {VIDEOS.map((video, i) => (
-              <div
-                key={video.id}
-                className="card-hover"
-                onMouseEnter={() => setHoveredCard(video.id)}
-                onMouseLeave={() => setHoveredCard(null)}
-                style={{
-                  borderRadius: '16px', overflow: 'hidden', cursor: 'pointer',
-                  border: hoveredCard === video.id
-                    ? '1px solid rgba(139,92,246,0.5)'
-                    : '1px solid rgba(255,255,255,0.06)',
-                  background: '#1a1a1a',
-                  boxShadow: hoveredCard === video.id
-                    ? '0 20px 60px rgba(139,92,246,0.25), 0 0 0 1px rgba(139,92,246,0.2)'
-                    : '0 4px 20px rgba(0,0,0,0.4)',
-                  position: 'relative',
-                }}
-              >
-                {/* Thumbnail */}
-                <div style={{
-                  height: '200px', position: 'relative', overflow: 'hidden',
-                  background: `linear-gradient(135deg, #1a1a2e, #16213e)`,
-                }}>
+            {!feedLoading && feedVideos.length === 0 && !feedError && (
+              <p style={{ color: '#6b7280', fontSize: '0.875rem', gridColumn: '1 / -1', fontFamily: "'DM Sans', sans-serif" }}>
+                No public videos yet. Upload one from the feed or upload page once you&apos;re logged in.
+              </p>
+            )}
+            {feedVideos.map((video, i) => {
+              const vid = video._id;
+              const creator = video.uploader ?? video.owner;
+              const views = video.views ?? video.viewsCount ?? 0;
+              return (
+                <Link
+                  key={vid}
+                  href={`/watch/${vid}`}
+                  className="card-hover"
+                  onMouseEnter={() => setHoveredCard(vid)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  style={{
+                    borderRadius: '16px', overflow: 'hidden', cursor: 'pointer',
+                    textDecoration: 'none',
+                    border: hoveredCard === vid
+                      ? '1px solid rgba(139,92,246,0.5)'
+                      : '1px solid rgba(255,255,255,0.06)',
+                    background: '#1a1a1a',
+                    boxShadow: hoveredCard === vid
+                      ? '0 20px 60px rgba(139,92,246,0.25), 0 0 0 1px rgba(139,92,246,0.2)'
+                      : '0 4px 20px rgba(0,0,0,0.4)',
+                    position: 'relative',
+                  }}
+                >
                   <div style={{
-                    position: 'absolute', inset: 0,
-                    background: `linear-gradient(135deg, ${
-                      i % 3 === 0 ? 'rgba(139,92,246,0.4), rgba(236,72,153,0.2)' :
-                      i % 3 === 1 ? 'rgba(236,72,153,0.4), rgba(139,92,246,0.2)' :
-                      'rgba(99,102,241,0.4), rgba(139,92,246,0.2)'
-                    })`,
-                    transition: 'all 0.4s ease',
-                    transform: hoveredCard === video.id ? 'scale(1.1)' : 'scale(1)',
-                  }} />
-
-                  {/* Grid pattern inside card */}
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-                    backgroundSize: '20px 20px',
-                  }} />
-
-                  {/* Play button on hover */}
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    opacity: hoveredCard === video.id ? 1 : 0,
-                    transition: 'opacity 0.3s ease',
+                    height: '200px', position: 'relative', overflow: 'hidden',
+                    background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
                   }}>
                     <div style={{
-                      width: '56px', height: '56px', borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.15)',
-                      backdropFilter: 'blur(10px)',
-                      border: '2px solid rgba(255,255,255,0.3)',
+                      position: 'absolute', inset: 0,
+                      background: `linear-gradient(135deg, ${
+                        i % 3 === 0 ? 'rgba(139,92,246,0.4), rgba(236,72,153,0.2)' :
+                        i % 3 === 1 ? 'rgba(236,72,153,0.4), rgba(139,92,246,0.2)' :
+                        'rgba(99,102,241,0.4), rgba(139,92,246,0.2)'
+                      })`,
+                      transition: 'all 0.4s ease',
+                      transform: hoveredCard === vid ? 'scale(1.1)' : 'scale(1)',
+                    }} />
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+                      backgroundSize: '20px 20px',
+                    }} />
+                    <div style={{
+                      position: 'absolute', inset: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 0 30px rgba(139,92,246,0.5)',
+                      opacity: hoveredCard === vid ? 1 : 0,
+                      transition: 'opacity 0.3s ease',
                     }}>
-                      <span style={{ color: 'white', fontSize: '1.25rem', marginLeft: '4px' }}>▶</span>
-                    </div>
-                  </div>
-
-                  {/* Views badge */}
-                  <div style={{
-                    position: 'absolute', top: '0.75rem', right: '0.75rem',
-                    padding: '0.25rem 0.6rem', borderRadius: '100px',
-                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)',
-                    color: '#f9fafb', fontSize: '0.7rem', fontWeight: '600',
-                    fontFamily: "'DM Sans', sans-serif",
-                    border: '1px solid rgba(255,255,255,0.1)',
-                  }}>
-                    👁 {video.views}
-                  </div>
-
-                  {/* Duration badge */}
-                  <div style={{
-                    position: 'absolute', bottom: '0.75rem', left: '0.75rem',
-                    padding: '0.2rem 0.5rem', borderRadius: '4px',
-                    background: 'rgba(0,0,0,0.8)',
-                    color: '#f9fafb', fontSize: '0.7rem', fontWeight: '600',
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}>
-                    0:{(i + 1) * 17}
-                  </div>
-                </div>
-
-                {/* Card content */}
-                <div style={{ padding: '1rem' }}>
-                  <h3 style={{
-                    color: '#f9fafb', fontWeight: '700', fontSize: '0.95rem',
-                    fontFamily: "'Syne', sans-serif", marginBottom: '0.35rem',
-                  }}>
-                    {video.title}
-                  </h3>
-                  <p style={{ color: '#6b7280', fontSize: '0.8rem', marginBottom: '0.75rem', fontFamily: "'DM Sans', sans-serif" }}>
-                    {video.creator}
-                  </p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                      <button
-                        onClick={() => toggleLike(video.id)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: '0.3rem',
-                          color: likedVideos.has(video.id) ? '#ec4899' : '#6b7280',
-                          fontSize: '0.8rem', fontFamily: "'DM Sans', sans-serif",
-                          transition: 'all 0.2s ease',
-                          transform: likedVideos.has(video.id) ? 'scale(1.1)' : 'scale(1)',
-                        }}
-                      >
-                        {likedVideos.has(video.id) ? '♥' : '♡'} {video.likes}
-                      </button>
-                      <button style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '0.3rem',
-                        color: '#6b7280', fontSize: '0.8rem',
-                        fontFamily: "'DM Sans', sans-serif",
+                      <div style={{
+                        width: '56px', height: '56px', borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.15)',
+                        backdropFilter: 'blur(10px)',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 0 30px rgba(139,92,246,0.5)',
                       }}>
-                        💬 💬 {commentCount ?? 0}
-                      </button>
+                        <span style={{ color: 'white', fontSize: '1.25rem', marginLeft: '4px' }}>▶</span>
+                      </div>
                     </div>
-
-                    <button style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: '#6b7280', fontSize: '1rem',
-                      transition: 'color 0.2s ease',
-                    }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#8b5cf6')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
-                    >
-                      ↗
-                    </button>
+                    <div style={{
+                      position: 'absolute', top: '0.75rem', right: '0.75rem',
+                      padding: '0.25rem 0.6rem', borderRadius: '100px',
+                      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)',
+                      color: '#f9fafb', fontSize: '0.7rem', fontWeight: '600',
+                      fontFamily: "'DM Sans', sans-serif",
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }}>
+                      👁 {formatViewsHome(views)}
+                    </div>
+                    <div style={{
+                      position: 'absolute', bottom: '0.75rem', left: '0.75rem',
+                      padding: '0.2rem 0.5rem', borderRadius: '4px',
+                      background: 'rgba(0,0,0,0.8)',
+                      color: '#f9fafb', fontSize: '0.7rem', fontWeight: '600',
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}>
+                      {formatDuration(video.duration ?? 0)}
+                    </div>
                   </div>
-                </div>
-
-                {/* Neon glow line on hover */}
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px',
-                  background: 'linear-gradient(90deg, #8b5cf6, #ec4899)',
-                  opacity: hoveredCard === video.id ? 1 : 0,
-                  transition: 'opacity 0.3s ease',
-                }} />
-              </div>
-            ))}
+                  <div style={{ padding: '1rem' }}>
+                    <h3 style={{
+                      color: '#f9fafb', fontWeight: '700', fontSize: '0.95rem',
+                      fontFamily: "'Syne', sans-serif", marginBottom: '0.35rem',
+                    }}>
+                      {video.title}
+                    </h3>
+                    <p style={{ color: '#6b7280', fontSize: '0.8rem', marginBottom: '0.5rem', fontFamily: "'DM Sans', sans-serif" }}>
+                      @{creator?.username ?? 'Unknown'}
+                    </p>
+                    <span style={{ color: '#8b5cf6', fontSize: '0.8rem', fontWeight: '600', fontFamily: "'DM Sans', sans-serif" }}>
+                      Watch →
+                    </span>
+                  </div>
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px',
+                    background: 'linear-gradient(90deg, #8b5cf6, #ec4899)',
+                    opacity: hoveredCard === vid ? 1 : 0,
+                    transition: 'opacity 0.3s ease',
+                  }} />
+                </Link>
+              );
+            })}
           </div>
 
-          {/* Load more */}
           <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-            <button className="glow-btn" style={{
-              padding: '0.875rem 2.5rem', borderRadius: '100px',
-              border: '1px solid rgba(139,92,246,0.4)',
-              background: 'transparent', color: '#f9fafb', cursor: 'pointer',
-              fontSize: '0.875rem', fontWeight: '600',
-              fontFamily: "'DM Sans', sans-serif",
-              position: 'relative', zIndex: 1,
-            }}>
-              Load More Videos
-            </button>
+            <Link
+              href="/feed"
+              className="glow-btn"
+              style={{
+                display: 'inline-block',
+                padding: '0.875rem 2.5rem', borderRadius: '100px',
+                border: '1px solid rgba(139,92,246,0.4)',
+                background: 'transparent', color: '#f9fafb', cursor: 'pointer',
+                fontSize: '0.875rem', fontWeight: '600',
+                fontFamily: "'DM Sans', sans-serif",
+                position: 'relative', zIndex: 1,
+                textDecoration: 'none',
+              }}
+            >
+              Open full discovery feed
+            </Link>
           </div>
         </div>
       </section>

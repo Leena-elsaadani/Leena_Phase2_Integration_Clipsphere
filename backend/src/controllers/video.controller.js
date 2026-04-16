@@ -1,5 +1,7 @@
 import { uploadVideo, getPublicFeed, getFollowingFeed, getTrendingFeed, generateVideoURL } from '../services/Videoservice.js';
 import { createReview as createReviewService } from '../services/review.service.js';
+import Video from '../models/video.model.js';
+import Follower from '../models/follower.model.js';
 
 // Upload video with metadata
 export const uploadVideo_controller = async (req, res, next) => {
@@ -56,10 +58,10 @@ export const getFollowingFeed_controller = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const skip = parseInt(req.query.skip) || 0;
-    
-    // TODO: get user's followingIds from User model
-    const followingIds = req.user.following || [];
-    
+
+    const followingDocs = await Follower.find({ follower: req.user.id }).select('following').lean();
+    const followingIds = followingDocs.map((f) => f.following);
+
     const result = await getFollowingFeed(followingIds, limit, skip);
     res.status(200).json({
       status: 'success',
@@ -82,6 +84,29 @@ export const getTrendingFeed_controller = async (req, res, next) => {
       status: 'success',
       results: result.videos.length,
       data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Presigned stream URL (auth required — matches frontend videoApi.getStreamURL)
+export const getStreamURL = async (req, res, next) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    if (!video) {
+      return res.status(404).json({ message: 'Video not found' });
+    }
+    if (video.status === 'private' && String(video.owner) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    if (!video.videoKey) {
+      return res.status(404).json({ message: 'Video file not available' });
+    }
+    const url = await generateVideoURL(video.videoKey);
+    res.status(200).json({
+      status: 'success',
+      data: { url },
     });
   } catch (err) {
     next(err);

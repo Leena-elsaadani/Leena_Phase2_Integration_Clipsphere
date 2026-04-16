@@ -18,7 +18,7 @@ const fetchers = {
 };
 
 export function useFeed(tab = "public") {
-  const [videos, setVideos] = useState([]);
+  const [videos, setVideos] = useState(/** @type {{ _id: string }[]} */ ([]));
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

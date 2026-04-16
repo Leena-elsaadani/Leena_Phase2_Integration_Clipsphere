@@ -2,7 +2,6 @@
 
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function ProfilePage() {
   const { user, loading, logout } = useAuth();
@@ -47,46 +46,18 @@ export default function ProfilePage() {
         filter: 'blur(40px)', pointerEvents: 'none',
       }} />
 
-      {/* Navbar */}
-      <nav style={{
-        padding: '1rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.05)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: 'rgba(13,13,13,0.95)', backdropFilter: 'blur(20px)',
-        position: 'sticky', top: 0, zIndex: 100,
-      }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{
-            fontFamily: "'Syne', sans-serif", fontWeight: '800', fontSize: '1.2rem',
-            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>ClipSphere</span>
-        </Link>
-        <button
-          onClick={logout}
-          style={{
-            padding: '0.5rem 1.25rem', borderRadius: '100px',
-            border: '1px solid rgba(236,72,153,0.4)',
-            background: 'transparent', color: '#ec4899',
-            cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600',
-            fontFamily: "'DM Sans', sans-serif",
-            transition: 'all 0.3s ease',
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget.style.background = 'rgba(236,72,153,0.1)');
-            (e.currentTarget.style.boxShadow = '0 0 15px rgba(236,72,153,0.3)');
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget.style.background = 'transparent');
-            (e.currentTarget.style.boxShadow = 'none');
-          }}
-        >
-          Logout
-        </button>
-      </nav>
-
       {/* Profile content */}
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem 1.5rem' }}>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button
+            type="button"
+            onClick={logout}
+            className="text-sm font-semibold text-zinc-200 border border-zinc-600 rounded-lg px-4 py-2 hover:bg-zinc-800 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
 
         {/* Cover area */}
         <div style={{
@@ -168,7 +139,7 @@ export default function ProfilePage() {
           }}>
             <p style={{ color: '#6b7280', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>NOTIFICATIONS</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {Object.entries(user.notificationPreferences).map(([key, val]) => (
+              {Object.entries(user.notificationPreferences ?? {}).map(([key, val]) => (
                 <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{key}</span>
                   <span style={{
@@ -181,18 +152,10 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Edit profile button */}
-        <button style={{
-          padding: '0.75rem 2rem', borderRadius: '100px',
-          background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-          border: 'none', color: 'white', cursor: 'pointer',
-          fontSize: '0.875rem', fontWeight: '700',
-          fontFamily: "'Syne', sans-serif",
-          transition: 'all 0.3s ease',
-          boxShadow: '0 0 20px rgba(139,92,246,0.3)',
-        }}
-          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 30px rgba(139,92,246,0.6)')}
-          onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 0 20px rgba(139,92,246,0.3)')}
+        {/* Edit profile — not wired to API */}
+        <button
+          type="button"
+          className="px-8 py-3 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 transition-colors"
         >
           Edit Profile
         </button>

@@ -24,7 +24,11 @@ async function request(path, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
   const data = await res.json();
 
   if (!res.ok) {
@@ -66,6 +70,7 @@ export const videoApi = {
       const token = getToken();
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${BASE}/videos/upload`);
+      xhr.withCredentials = true;
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
       xhr.upload.addEventListener("progress", (e) => {

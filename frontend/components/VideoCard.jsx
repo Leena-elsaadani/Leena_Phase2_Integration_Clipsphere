@@ -32,6 +32,9 @@ function timeAgo(dateStr) {
 }
 
 export default function VideoCard({ video }) {
+  const creator = video.uploader ?? video.owner;
+  const viewCount = video.views ?? video.viewsCount ?? 0;
+
   const thumbnailSrc =
     video.thumbnailKey
       ? `${process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL}/videos/${video.thumbnailKey}`
@@ -58,7 +61,7 @@ export default function VideoCard({ video }) {
       <div className="mt-2 flex gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold uppercase">
-          {video.uploader?.username?.[0] ?? "?"}
+          {creator?.username?.[0] ?? "?"}
         </div>
 
         <div className="overflow-hidden">
@@ -66,10 +69,10 @@ export default function VideoCard({ video }) {
             {video.title}
           </p>
           <p className="text-xs text-zinc-400 mt-0.5">
-            {video.uploader?.username ?? "Unknown"}
+            {creator?.username ?? "Unknown"}
           </p>
           <p className="text-xs text-zinc-500">
-            {formatViews(video.views)} views · {timeAgo(video.createdAt)}
+            {formatViews(viewCount)} views · {timeAgo(video.createdAt)}
           </p>
         </div>
       </div>

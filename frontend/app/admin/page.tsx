@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../services/api';
 
@@ -44,7 +43,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (authLoading) return;
-    // Admin role protection — client-side guard (server-side handled by middleware.ts)
+    // Admin role protection — client-side guard (API enforces admin via restrictTo)
     if (!user || user.role !== 'admin') {
       router.replace('/');
       return;
@@ -74,21 +73,16 @@ export default function AdminDashboard() {
     <div style={{ minHeight: '100vh', background: '#0d0d0d', fontFamily: "'DM Sans', sans-serif", color: '#f9fafb' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap'); @keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Navbar */}
-      <nav style={{ padding: '1rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(13,13,13,0.95)', backdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: '800', fontSize: '1.2rem', background: 'linear-gradient(135deg,#8b5cf6,#ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>ClipSphere</span>
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ padding: '3px 12px', borderRadius: '100px', background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.3)', color: '#ec4899', fontSize: '0.72rem', fontWeight: '700' }}>ADMIN</span>
-          <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>@{user.username}</span>
-        </div>
-      </nav>
-
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2.5rem 1.5rem' }}>
 
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ padding: '3px 12px', borderRadius: '100px', background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.3)', color: '#ec4899', fontSize: '0.72rem', fontWeight: '700' }}>ADMIN</span>
+              <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>@{user.username}</span>
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '4px' }}>
             <div style={{ width: '4px', height: '26px', background: 'linear-gradient(to bottom,#8b5cf6,#ec4899)', borderRadius: '2px' }} />
             <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: '800', fontSize: '1.75rem', color: '#f9fafb', margin: 0 }}>Admin Dashboard</h1>

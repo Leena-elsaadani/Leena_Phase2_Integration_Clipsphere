@@ -1,5 +1,14 @@
 import express from 'express';
-import { uploadVideo_controller, getAllVideos, getFollowingFeed_controller, getTrendingFeed_controller, updateVideo, deleteVideo, createReview } from '../controllers/video.controller.js';
+import {
+  uploadVideo_controller,
+  getAllVideos,
+  getFollowingFeed_controller,
+  getTrendingFeed_controller,
+  getStreamURL,
+  updateVideo,
+  deleteVideo,
+  createReview,
+} from '../controllers/video.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import { restrictTo } from '../middleware/role.middleware.js';
 import ownershipMiddleware from '../middleware/ownership.middleware.js';
@@ -16,6 +25,11 @@ const router = express.Router();
 
 // Public route anyone can see the video feed
 router.get('/', getAllVideos);
+
+// Feeds + playback (order: static paths before "/:id/...")
+router.get('/trending', getTrendingFeed_controller);
+router.get('/following', protect, getFollowingFeed_controller);
+router.get('/:id/stream-url', protect, getStreamURL);
 
 // Protected routes must be logged in
 router.post(

@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { videoApi } from '@/lib/api';
-import { api } from '../../services/api';
+import { api } from '../../../services/api';
 import LikeButton from '../../../components/LikeButton';
 import ShareButton from '../../../components/ShareButton';
 import CommentSection from '../../../components/CommentSection';
@@ -40,22 +39,25 @@ export default function WatchPage() {
 
     async function fetchAll() {
       try {
-        // Get presigned stream URL (teammate's endpoint)
         const streamRes = await videoApi.getStreamURL(id);
-        setStreamURL(streamRes.data.url);
+        const url = streamRes?.data?.url;
+        if (url) setStreamURL(url);
       } catch {
-        // Video may not have file yet (metadata-only) — not fatal
+        // Stream route may be unavailable or user unauthenticated — not fatal
       }
 
       try {
-        // Get video metadata from feed
-        const feedRes = await api('/videos?limit=100');
-        const found = feedRes.data?.videos?.find((v) => v._id === id);
+        const feedRes = await api('/videos?limit=500&skip=0');
+        const list = feedRes.data?.videos || [];
+        const found = list.find((v) => String(v._id) === String(id));
         if (found) {
           setVideoMeta(found);
-          // Get likes count
-          const likesRes = await api(`/videos/${id}/likes`);
-          setLikesCount(likesRes.data.likesCount || 0);
+          try {
+            const likesRes = await api(`/videos/${id}/likes`);
+            setLikesCount(likesRes.data?.likesCount ?? 0);
+          } catch {
+            setLikesCount(0);
+          }
         }
       } catch {
         // ignore
@@ -87,9 +89,14 @@ export default function WatchPage() {
     videoRef.current.currentTime = ratio * (videoRef.current.duration || 0);
   };
 
-  // Dynamic ownership checks
-  const ownerId = videoMeta?.owner?._id || videoMeta?.owner;
-  const isOwner = user && ownerId && user._id === ownerId.toString();
+  // Dynamic ownership — API may populate `owner` or `uploader` depending on schema
+  const ownerId =
+    videoMeta?.owner?._id ||
+    videoMeta?.owner ||
+    videoMeta?.uploader?._id ||
+    videoMeta?.uploader;
+  const isOwner =
+    user && ownerId && String(user._id) === String(ownerId);
   const isAdmin = user?.role === 'admin';
 
   if (loading) {
@@ -115,15 +122,14 @@ export default function WatchPage() {
     <div style={{ minHeight: '100vh', background: '#0d0d0d', fontFamily: "'DM Sans', sans-serif", color: '#f9fafb' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
 
-      {/* Navbar */}
-      <nav style={{ padding: '1rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(13,13,13,0.95)', backdropFilter: 'blur(20px)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: '800', fontSize: '1.2rem', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>ClipSphere</span>
-        </Link>
-        <button onClick={() => router.back()} style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>← Back</button>
-      </nav>
-
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1rem 1.5rem 2rem' }}>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="mb-4 text-sm font-medium text-zinc-400 hover:text-white bg-transparent border border-zinc-700 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          ← Back
+        </button>
 
         {/* ── VIDEO PLAYER ── */}
         <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', background: '#000', marginBottom: '1.5rem', border: '1px solid rgba(139,92,246,0.2)' }}>

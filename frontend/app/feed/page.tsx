@@ -79,8 +79,8 @@ export default function FeedPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24">
 
         {/* ── Page header ── */}
-        <h1 className="text-3xl font-black tracking-tight mb-6">
-          <span className="text-violet-400">Clip</span>Sphere
+        <h1 className="text-3xl font-black tracking-tight mb-6 text-white">
+          <span className="text-violet-400">Discover</span> videos
         </h1>
 
         {/* ── Tabs ── */}

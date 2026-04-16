@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Protected routes — redirect to login if no token cookie
-const protectedRoutes = ['/profile', '/upload', '/admin'];
-
-export function middleware(req: NextRequest) {
-  const token = req.cookies.get('token')?.value;
-  const { pathname } = req.nextUrl;
-
-  const isProtected = protectedRoutes.some(route => pathname.startsWith(route));
-
-  if (isProtected && !token) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-
+/**
+ * JWT is set by the API on localhost:5000 (httpOnly). The browser still sends it on
+ * fetch(..., { credentials: 'include' }) to the API, but that cookie is often not
+ * present on document requests to localhost:3000, so a hard redirect here would
+ * loop / block /admin and /upload even when useAuth() is valid. Auth is enforced
+ * by the Express protect middleware; pages add client-side guards where needed.
+ */
+export function middleware(_req: NextRequest) {
   return NextResponse.next();
 }
 

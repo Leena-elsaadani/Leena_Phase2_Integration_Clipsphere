@@ -60,28 +60,6 @@ export default function LoginPage() {
           background: rgba(139,92,246,0.05);
         }
         input::placeholder { color: #6b7280; }
-        .submit-btn {
-          width: 100%;
-          padding: 0.875rem;
-          border-radius: 10px;
-          border: none;
-          background: linear-gradient(135deg, #8b5cf6, #ec4899);
-          color: white;
-          font-size: 1rem;
-          font-weight: 700;
-          font-family: 'Syne', sans-serif;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        .submit-btn:hover {
-          box-shadow: 0 0 30px rgba(139,92,246,0.5);
-          transform: translateY(-1px);
-        }
-        .submit-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-        }
       `}</style>
 
       {/* Background orbs */}
@@ -168,9 +146,8 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="submit-btn"
               disabled={loading}
-              style={{ marginTop: '0.5rem' }}
+              className="w-full mt-2 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>

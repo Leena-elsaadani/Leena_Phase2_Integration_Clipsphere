@@ -42,6 +42,9 @@ export const useAuth = () => {
     try {
       await api('/auth/logout', { method: 'POST' });
       setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+      }
       window.location.href = '/login';
     } catch (err) {
       console.error('Logout failed');
