@@ -1,22 +1,15 @@
 /**
  * lib/api.js
  * ─────────────────────────────────────────────────────────────────────────────
- * Thin fetch wrapper that prepends NEXT_PUBLIC_API_URL and attaches the JWT
- * from localStorage automatically.
+ * Thin fetch wrapper that prepends NEXT_PUBLIC_API_URL.
+ * Backend uses an httpOnly `token` cookie for auth; we rely on `credentials: "include"`.
  */
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
-function getToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
-
 async function request(path, options = {}) {
-  const token = getToken();
   const headers = {
     ...(options.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
   // Don't set Content-Type for FormData — browser sets it with the boundary
@@ -67,11 +60,9 @@ export const videoApi = {
    */
   uploadVideo: (formData, onProgress) =>
     new Promise((resolve, reject) => {
-      const token = getToken();
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${BASE}/videos/upload`);
       xhr.withCredentials = true;
-      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {

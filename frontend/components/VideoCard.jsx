@@ -35,9 +35,10 @@ export default function VideoCard({ video }) {
   const creator = video.uploader ?? video.owner;
   const viewCount = video.views ?? video.viewsCount ?? 0;
 
+  const minioBaseUrl = process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL || "";
   const thumbnailSrc =
-    video.thumbnailKey
-      ? `${process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL}/videos/${video.thumbnailKey}`
+    video.thumbnailKey && minioBaseUrl
+      ? `${minioBaseUrl}/${video.thumbnailKey}`
       : "/placeholder-thumbnail.svg";
 
   return (

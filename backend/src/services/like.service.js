@@ -12,10 +12,11 @@ export const likeVideo = async (videoId, userId) => {
     await Like.create({ user: userId, video: videoId });
     await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 10 } });
 
-    // Engagement email — only if owner is different from liker and prefs allow
+    // Engagement email — only if owner is different from liker.
+    // Email sending is best-effort and must never crash the like endpoint.
     if (video.owner && video.owner._id.toString() !== userId.toString()) {
       const owner = video.owner;
-      if (owner.notificationPreferences?.newLike !== false) {
+      try {
         const liker = await User.findById(userId).select('username');
         if (liker) {
           sendEngagementEmail(
@@ -23,9 +24,14 @@ export const likeVideo = async (videoId, userId) => {
             owner.username,
             liker.username,
             'liked',
-            video.title
-          );
+            video.title,
+            'newLike'
+          ).catch((emailErr) => {
+            console.error('Failed to send like email:', emailErr.message);
+          });
         }
+      } catch (emailErr) {
+        console.error('Failed to prepare like email:', emailErr.message);
       }
     }
 

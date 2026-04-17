@@ -1,6 +1,5 @@
 import Review from '../models/review.model.js';
 import Video from '../models/video.model.js';
-import Like from '../models/like.model.js';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
@@ -17,26 +16,30 @@ export const createReview = async (videoId, userId, reviewData) => {
       video: videoId,
     });
 
-    const allReviews = await Review.find({ video: videoId });
-    const avgRating =
-      allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
-    const ageInHours =
-      (Date.now() - new Date(video.createdAt).getTime()) / (1000 * 60 * 60);
-    const freshnessBonus = ageInHours < 24 ? 50 : 0;
-    const likesCount = await Like.countDocuments({ video: videoId });
-    const trendingScore = likesCount * 10 + avgRating * 2 + freshnessBonus;
-    await Video.findByIdAndUpdate(videoId, { trendingScore });
+    // Trending score increment (per engagement weight)
+    await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 15 } });
 
     await review.populate('user', 'username avatarUrl');
 
-    // Engagement email with preference check
+    // Engagement email — best-effort; do not crash the review endpoint
     if (video.owner && video.owner.toString() !== userId.toString()) {
-      const owner = await User.findById(video.owner).select('username email notificationPreferences');
-      if (owner && owner.notificationPreferences?.newComment !== false) {
+      try {
+        const owner = await User.findById(video.owner).select('username email');
         const reviewer = await User.findById(userId).select('username');
-        if (reviewer) {
-          sendEngagementEmail(owner.email, owner.username, reviewer.username, 'reviewed', video.title);
+        if (owner && reviewer) {
+          sendEngagementEmail(
+            owner.email,
+            owner.username,
+            reviewer.username,
+            'reviewed',
+            video.title,
+            'newComment'
+          ).catch((emailErr) => {
+            console.error('Failed to send review email:', emailErr.message);
+          });
         }
+      } catch (emailErr) {
+        console.error('Failed to prepare review email:', emailErr.message);
       }
     }
 
@@ -76,20 +79,8 @@ export const deleteReview = async (reviewId, userId, userRole) => {
   const videoId = review.video;
   await review.deleteOne();
 
-  const video = await Video.findById(videoId);
-  if (video) {
-    const allReviews = await Review.find({ video: videoId });
-    const avgRating =
-      allReviews.length > 0
-        ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
-        : 0;
-    const ageInHours =
-      (Date.now() - new Date(video.createdAt).getTime()) / (1000 * 60 * 60);
-    const freshnessBonus = ageInHours < 24 ? 50 : 0;
-    const likesCount = await Like.countDocuments({ video: videoId });
-    const trendingScore = likesCount * 10 + avgRating * 2 + freshnessBonus;
-    await Video.findByIdAndUpdate(videoId, { trendingScore });
-  }
+  // Keep trendingScore consistent with weighted engagement (+15 per review).
+  await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -15 } });
 
   return { message: 'Review deleted successfully' };
 };

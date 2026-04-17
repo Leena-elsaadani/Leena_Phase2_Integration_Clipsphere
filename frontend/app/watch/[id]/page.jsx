@@ -29,6 +29,14 @@ export default function WatchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Edit/Delete modals
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Player state
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -68,6 +76,53 @@ export default function WatchPage() {
 
     fetchAll();
   }, [id]);
+
+  // Keep edit fields synced to the latest loaded video metadata
+  useEffect(() => {
+    if (!videoMeta) return;
+    setEditTitle(videoMeta.title || '');
+    setEditDesc(videoMeta.description || '');
+  }, [videoMeta]);
+
+  const handleEditSave = async () => {
+    if (!id) return;
+    if (!editTitle.trim()) {
+      alert('Title cannot be empty');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const res = await api(`/videos/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDesc.trim(),
+        }),
+      });
+
+      setVideoMeta(res?.data?.data ?? null);
+      setEditMode(false);
+    } catch (err) {
+      alert(`Edit failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setDeleteLoading(true);
+    try {
+      await api(`/videos/${id}`, { method: 'DELETE' });
+      router.push('/feed');
+    } catch (err) {
+      alert(`Delete failed: ${err?.message || 'Unknown error'}`);
+      setDeleteConfirm(false);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -220,15 +275,90 @@ export default function WatchPage() {
               {/* Dynamic ownership: Edit and Delete only shown to owner OR admin */}
               {(isOwner || isAdmin) && (
                 <>
-                  <button style={{ padding: '8px 16px', borderRadius: '100px', cursor: 'pointer', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', fontSize: '0.875rem', fontWeight: '600', fontFamily: "'DM Sans', sans-serif" }}>
+                  <button
+                    onClick={() => setEditMode(true)}
+                    disabled={editLoading || deleteLoading}
+                    style={{ padding: '8px 16px', borderRadius: '100px', cursor: editLoading || deleteLoading ? 'not-allowed' : 'pointer', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', fontSize: '0.875rem', fontWeight: '600', fontFamily: "'DM Sans', sans-serif" }}
+                  >
                     ✏️ Edit
                   </button>
-                  <button style={{ padding: '8px 16px', borderRadius: '100px', cursor: 'pointer', background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.3)', color: '#ec4899', fontSize: '0.875rem', fontWeight: '600', fontFamily: "'DM Sans', sans-serif" }}>
+                  <button
+                    onClick={() => setDeleteConfirm(true)}
+                    disabled={editLoading || deleteLoading}
+                    style={{ padding: '8px 16px', borderRadius: '100px', cursor: editLoading || deleteLoading ? 'not-allowed' : 'pointer', background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.3)', color: '#ec4899', fontSize: '0.875rem', fontWeight: '600', fontFamily: "'DM Sans', sans-serif" }}
+                  >
                     🗑️ Delete
                   </button>
                 </>
               )}
             </div>
+
+            {/* Edit modal */}
+            {editMode && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+                <div style={{ background: '#1a1a1a', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '12px', padding: '2rem', maxWidth: '520px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+                  <h3 style={{ marginTop: 0, color: '#f9fafb' }}>Edit Video</h3>
+
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Title"
+                    style={{ width: '100%', marginBottom: '10px', padding: '8px', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f9fafb' }}
+                  />
+                  <textarea
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    placeholder="Description"
+                    style={{ width: '100%', marginBottom: '10px', padding: '8px', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#f9fafb' }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setEditMode(false)}
+                      disabled={editLoading}
+                      style={{ padding: '8px 16px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '6px', cursor: editLoading ? 'not-allowed' : 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleEditSave}
+                      disabled={editLoading}
+                      style={{ padding: '8px 16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '6px', cursor: editLoading ? 'not-allowed' : 'pointer' }}
+                    >
+                      {editLoading ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delete confirmation modal */}
+            {deleteConfirm && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+                <div style={{ background: '#1a1a1a', border: '1px solid rgba(236,72,153,0.2)', borderRadius: '12px', padding: '2rem', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+                  <h3 style={{ marginTop: 0, color: '#f9fafb' }}>Delete Video?</h3>
+                  <p style={{ color: '#9ca3af' }}>This action cannot be undone. Are you sure?</p>
+
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setDeleteConfirm(false)}
+                      disabled={deleteLoading}
+                      style={{ padding: '8px 16px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '6px', cursor: deleteLoading ? 'not-allowed' : 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleteLoading}
+                      style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: deleteLoading ? 'not-allowed' : 'pointer' }}
+                    >
+                      {deleteLoading ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 

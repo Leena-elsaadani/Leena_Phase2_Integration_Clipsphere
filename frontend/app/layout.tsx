@@ -24,6 +24,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 Feed
               </Link>
               <Link
+                href="/profile"
+                className="text-sm font-medium text-zinc-300 hover:text-white px-3 py-2 rounded-lg transition-colors"
+              >
+                Profile
+              </Link>
+              <Link
+                href="/admin"
+                className="text-sm font-medium text-zinc-300 hover:text-white px-3 py-2 rounded-lg transition-colors"
+              >
+                Admin
+              </Link>
+              <Link
                 href="/login"
                 className="text-sm font-medium text-zinc-300 hover:text-white px-3 py-2 rounded-lg transition-colors"
               >

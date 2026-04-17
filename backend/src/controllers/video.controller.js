@@ -2,6 +2,7 @@ import { uploadVideo, getPublicFeed, getFollowingFeed, getTrendingFeed, generate
 import { createReview as createReviewService } from '../services/review.service.js';
 import Video from '../models/video.model.js';
 import Follower from '../models/follower.model.js';
+import { deleteObject } from '../services/s3Service.js';
 
 // Upload video with metadata
 export const uploadVideo_controller = async (req, res, next) => {
@@ -114,19 +115,70 @@ export const getStreamURL = async (req, res, next) => {
 };
 
 // Update a video
-export const updateVideo = async (req, res) => {
-  res.status(501).json({
-    status: 'error',
-    message: 'Update video not implemented',
-  });
+export const updateVideo = async (req, res, next) => {
+  try {
+    const video = req.resource;
+    if (!video) {
+      return res.status(404).json({ status: 'error', message: 'Video not found' });
+    }
+
+    const { title, description } = req.body;
+    const updates = {};
+
+    if (typeof title === 'string') updates.title = title;
+    if (typeof description === 'string') updates.description = description;
+
+    const updatedVideo = await Video.findByIdAndUpdate(video._id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Video updated successfully',
+      data: updatedVideo,
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Delete a video
-export const deleteVideo = async (req, res) => {
-  res.status(501).json({
-    status: 'error',
-    message: 'Delete video not implemented',
-  });
+export const deleteVideo = async (req, res, next) => {
+  try {
+    const video = req.resource;
+    if (!video) {
+      return res.status(404).json({ status: 'error', message: 'Video not found' });
+    }
+
+    const videoId = req.params.id;
+
+    // Delete from MinIO (best-effort; DB deletion should still succeed)
+    if (video.videoKey) {
+      try {
+        await deleteObject(video.videoKey);
+      } catch (s3Err) {
+        console.error('Failed to delete video object from storage:', s3Err.message);
+      }
+    }
+
+    if (video.thumbnailKey) {
+      try {
+        await deleteObject(video.thumbnailKey);
+      } catch (s3Err) {
+        console.error('Failed to delete thumbnail from storage:', s3Err.message);
+      }
+    }
+
+    await Video.findByIdAndDelete(videoId);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Video deleted successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // Submit a review

@@ -7,7 +7,24 @@ import { NextRequest, NextResponse } from 'next/server';
  * loop / block /admin and /upload even when useAuth() is valid. Auth is enforced
  * by the Express protect middleware; pages add client-side guards where needed.
  */
-export function middleware(_req: NextRequest) {
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+
+  // Protected routes that require auth via `token` cookie set by the backend.
+  const protectedRoutes = ['/upload', '/profile', '/admin'];
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    url.pathname.startsWith(route)
+  );
+
+  if (isProtectedRoute) {
+    const token = req.cookies.get('token')?.value;
+    if (!token) {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('from', url.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   return NextResponse.next();
 }
 

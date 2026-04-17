@@ -26,6 +26,12 @@ const videoSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Optional MinIO object key for a generated JPEG thumbnail (e.g. "thumbnails/<uuid>.jpg")
+    thumbnailKey: {
+      type: String,
+      default: null,
+    },
+
     duration: {
       type: Number,
       required: [true, 'Duration is required'],

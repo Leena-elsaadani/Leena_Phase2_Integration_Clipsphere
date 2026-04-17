@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import env from '../config/env.js';
+import User from '../models/user.model.js';
 
 // Only create transporter if SMTP credentials exist
 let transporter = null;
@@ -14,6 +15,12 @@ if (env.SMTP_USER && env.SMTP_PASS) {
       pass: env.SMTP_PASS,
     },
   });
+}
+
+if (!env.SMTP_USER || !env.SMTP_PASS) {
+  console.warn(
+    '[Email] SMTP not configured: missing SMTP_USER or SMTP_PASS. Engagement emails will not be sent.'
+  );
 }
 
 // ── HTML TEMPLATES ────────────────────────────────────────────────────────────
@@ -87,10 +94,18 @@ export const sendEngagementEmail = async (
   recipientUsername,
   actorUsername,
   action,
-  videoTitle
+  videoTitle,
+  notificationPreferenceKey
 ) => {
   if (!transporter) return;
   try {
+    const prefKey = notificationPreferenceKey || 'newComment';
+
+    // Enforce notification preferences at the email layer (best-effort).
+    const recipient = await User.findOne({ email: recipientEmail }).select('notificationPreferences');
+    const prefs = recipient?.notificationPreferences || {};
+    if (prefs?.[prefKey] === false) return; // user explicitly disabled this notification
+
     await transporter.sendMail({
       from: `"ClipSphere" <${env.SMTP_USER}>`,
       to: recipientEmail,
