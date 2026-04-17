@@ -21,12 +21,18 @@ import path from "path";
 const BUCKET = process.env.MINIO_BUCKET || "videos";
 
 // Make sure ffmpeg binary is discoverable for fluent-ffmpeg.
-// (Other middleware sets this too, but setting it here keeps thumbnail generation self-contained.)
-if (ffmpegPath) {
-  ffmpeg.setFfmpegPath(ffmpegPath);
+// Prefer system ffmpeg, fall back to ffmpeg-static
+try {
+  ffmpeg.setFfmpegPath('ffmpeg'); // Try system ffmpeg first
+} catch {
+  if (ffmpegPath) {
+    ffmpeg.setFfmpegPath(ffmpegPath); // Fall back to static binary
+  }
 }
 
 async function extractThumbnail(buffer, seconds = 2) {
+
+async function extractThumbnail(buffer, seconds) {
   if (!buffer) return null;
 
   const inputPath = path.join(os.tmpdir(), `clip-${uuidv4()}.mp4`);
@@ -116,8 +122,8 @@ async function uploadVideo({
   buffer,
   videoMeta,
 }) {
-  // 1. Generate a unique object key
-  const objectKey = `videos/${uuidv4()}.mp4`;
+  // 1. Unique object key inside bucket "videos" (avoid "videos/videos/..." public URLs)
+  const objectKey = `${uuidv4()}.mp4`;
 
   // 2. Upload to MinIO first
   await uploadBuffer(objectKey, buffer, videoMeta.mimeType);

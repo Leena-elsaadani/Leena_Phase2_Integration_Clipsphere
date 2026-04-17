@@ -1,0 +1,6 @@
+<svg width="320" height="180" viewBox="0 0 320 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="180" fill="#1a1a1a"/>
+  <circle cx="160" cy="90" r="30" fill="#8b5cf6" opacity="0.3"/>
+  <path d="M145 85L155 90L145 95V85Z" fill="#f9fafb"/>
+  <text x="160" y="130" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="12">No Thumbnail</text>
+</svg>

@@ -7,6 +7,7 @@ import {
   getStreamURL,
   updateVideo,
   deleteVideo,
+  incrementViewCount,
   createReview,
 } from '../controllers/video.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
@@ -29,7 +30,7 @@ router.get('/', getAllVideos);
 // Feeds + playback (order: static paths before "/:id/...")
 router.get('/trending', getTrendingFeed_controller);
 router.get('/following', protect, getFollowingFeed_controller);
-router.get('/:id/stream-url', protect, getStreamURL);
+router.get('/:id/stream-url', getStreamURL); // Made public for public videos
 
 // Protected routes must be logged in
 router.post(
@@ -55,6 +56,13 @@ router.delete(
   // We pass the model and tell it admins can bypass ownership
   ownershipMiddleware(Video, { allowAdmin: true }),
   deleteVideo
+);
+
+router.post(
+  '/:id/view',
+  protect,  // require login to count views?
+  ownershipMiddleware(Video),  // any user can view any video
+  incrementViewCount
 );
 
 // Reviews are nested under videos: /videos/:id/reviews

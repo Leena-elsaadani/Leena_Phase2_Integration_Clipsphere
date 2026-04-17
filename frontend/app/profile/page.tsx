@@ -2,10 +2,35 @@
 
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { api } from '../../services/api';
 
 export default function ProfilePage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const [preferences, setPreferences] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (user?.notificationPreferences) {
+      setPreferences(user.notificationPreferences);
+    }
+  }, [user]);
+
+  const handleSavePreferences = async () => {
+    setSaving(true);
+    try {
+      await api('/me/notifications', {
+        method: 'PATCH',
+        body: JSON.stringify(preferences),
+      });
+      alert('Preferences saved!');
+    } catch (err) {
+      alert('Failed to save preferences');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -138,17 +163,41 @@ export default function ProfilePage() {
             padding: '1.5rem',
           }}>
             <p style={{ color: '#6b7280', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>NOTIFICATIONS</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {Object.entries(user.notificationPreferences ?? {}).map(([key, val]) => (
-                <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{key}</span>
-                  <span style={{
-                    width: '8px', height: '8px', borderRadius: '50%',
-                    backgroundColor: val ? '#8b5cf6' : '#374151',
-                  }} />
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {Object.entries(preferences).map(([key, val]) => (
+                <label key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                  <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
+                    {key === 'newFollower' ? 'New followers' :
+                     key === 'newComment' ? 'Comments on my videos' :
+                     key === 'newLike' ? 'Likes on my videos' : key}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={val || false}
+                    onChange={(e) => setPreferences(prev => ({ ...prev, [key]: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', accentColor: '#8b5cf6' }}
+                  />
+                </label>
               ))}
             </div>
+            <button
+              onClick={handleSavePreferences}
+              disabled={saving}
+              style={{
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                border: 'none',
+                color: 'white',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Saving...' : 'Save Preferences'}
+            </button>
           </div>
         </div>
 

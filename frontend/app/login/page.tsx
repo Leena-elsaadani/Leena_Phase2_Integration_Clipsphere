@@ -127,6 +127,7 @@ export default function LoginPage() {
                 value={form.email}
                 onChange={handleChange}
                 required
+                suppressHydrationWarning
               />
             </div>
 
@@ -141,6 +142,7 @@ export default function LoginPage() {
                 value={form.password}
                 onChange={handleChange}
                 required
+                suppressHydrationWarning
               />
             </div>
 

@@ -18,6 +18,7 @@ export const login = async (req, res, next) => {
       httpOnly: true,        // JS cannot access this cookie
       secure: false,         // set to true in production (HTTPS only)
       sameSite: 'lax',       // protects against CSRF
+      domain: 'localhost',   // allow sharing between localhost:3000 and localhost:5000
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
     });
 

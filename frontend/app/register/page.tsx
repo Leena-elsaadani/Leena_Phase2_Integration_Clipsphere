@@ -40,27 +40,6 @@ export default function RegisterPage() {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '1rem', fontFamily: "'DM Sans', sans-serif",
     }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
-        input {
-          width: 100%;
-          padding: 0.875rem 1rem;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 10px;
-          color: #f9fafb;
-          font-size: 0.95rem;
-          font-family: 'DM Sans', sans-serif;
-          outline: none;
-          transition: all 0.3s ease;
-        }
-        input:focus {
-          border-color: #8b5cf6;
-          box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
-          background: rgba(139,92,246,0.05);
-        }
-        input::placeholder { color: #6b7280; }
-      `}</style>
 
       {/* Background orbs */}
       <div style={{
@@ -126,7 +105,9 @@ export default function RegisterPage() {
                 placeholder="yourname"
                 value={form.username}
                 onChange={handleChange}
+                className="register-input"
                 required
+                suppressHydrationWarning
               />
             </div>
 
@@ -140,7 +121,9 @@ export default function RegisterPage() {
                 placeholder="you@example.com"
                 value={form.email}
                 onChange={handleChange}
+                className="register-input"
                 required
+                suppressHydrationWarning
               />
             </div>
 
@@ -154,7 +137,9 @@ export default function RegisterPage() {
                 placeholder="min 8 characters"
                 value={form.password}
                 onChange={handleChange}
+                className="register-input"
                 required
+                suppressHydrationWarning
               />
             </div>
 

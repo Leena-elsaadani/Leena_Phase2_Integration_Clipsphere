@@ -11,9 +11,10 @@ export const validate = (schema) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        // Format Zod errors
-        const errors = error.errors.map((err) => ({
-          field: err.path.join('.'),
+        // Zod exposes issues[] (Zod v3/v4); avoid error.errors which is undefined.
+        const issues = error.issues ?? error.errors;
+        const errors = (issues || []).map((err) => ({
+          field: (err.path ?? []).join('.'),
           message: err.message,
         }));
         return res.status(400).json({

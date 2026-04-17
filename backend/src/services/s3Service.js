@@ -14,7 +14,7 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import s3Client from "../config/s3.js";
+import s3Client, { s3PresignClient } from "../config/s3.js";
 import { Readable } from "stream";
 
 const BUCKET = process.env.MINIO_BUCKET || "videos";

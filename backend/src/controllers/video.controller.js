@@ -91,16 +91,24 @@ export const getTrendingFeed_controller = async (req, res, next) => {
   }
 };
 
-// Presigned stream URL (auth required — matches frontend videoApi.getStreamURL)
+// Presigned stream URL (public for public videos, auth required for private)
 export const getStreamURL = async (req, res, next) => {
   try {
     const video = await Video.findById(req.params.id);
     if (!video) {
       return res.status(404).json({ message: 'Video not found' });
     }
-    if (video.status === 'private' && String(video.owner) !== String(req.user.id)) {
-      return res.status(403).json({ message: 'Access denied' });
+
+    // Check if video is private and user is not authenticated or not the owner
+    if (video.status === 'private') {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: 'Authentication required for private videos' });
+      }
+      if (String(video.owner) !== String(req.user.id)) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     }
+
     if (!video.videoKey) {
       return res.status(404).json({ message: 'Video file not available' });
     }
@@ -175,6 +183,25 @@ export const deleteVideo = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       message: 'Video deleted successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Increment view count
+export const incrementViewCount = async (req, res, next) => {
+  try {
+    const video = req.resource;
+    if (!video) {
+      return res.status(404).json({ status: 'error', message: 'Video not found' });
+    }
+
+    await Video.findByIdAndUpdate(video._id, { $inc: { viewsCount: 1 } });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'View count incremented',
     });
   } catch (err) {
     next(err);

@@ -41,6 +41,7 @@ export default function WatchPage() {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [viewIncremented, setViewIncremented] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -125,9 +126,31 @@ export default function WatchPage() {
   };
 
   const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (playing) { videoRef.current.pause(); } else { videoRef.current.play(); }
-    setPlaying(!playing);
+    const el = videoRef.current;
+    if (!el) return;
+    if (playing) {
+      el.pause();
+      setPlaying(false);
+      return;
+    }
+    const p = el.play();
+    if (p !== undefined) {
+      p.then(() => setPlaying(true)).catch(() => setPlaying(false));
+    } else {
+      setPlaying(true);
+    }
+  };
+
+  const handlePlay = async () => {
+    setPlaying(true);
+    if (!viewIncremented && id) {
+      try {
+        await api(`/videos/${id}/view`, { method: 'POST' });
+        setViewIncremented(true);
+      } catch (err) {
+        // silently fail, don't spam user
+      }
+    }
   };
 
   const handleTimeUpdate = () => {
@@ -193,10 +216,11 @@ export default function WatchPage() {
             <video
               ref={videoRef}
               src={streamURL}
+              playsInline
               style={{ width: '100%', display: 'block', maxHeight: '500px', objectFit: 'contain', background: '#000' }}
               onTimeUpdate={handleTimeUpdate}
               onEnded={() => setPlaying(false)}
-              onPlay={() => setPlaying(true)}
+              onPlay={handlePlay}
               onPause={() => setPlaying(false)}
             />
           ) : (
