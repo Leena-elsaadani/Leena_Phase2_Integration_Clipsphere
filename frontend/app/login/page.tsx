@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '../../services/api';
+import { refreshAuth } from '../../hooks/useAuth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function LoginPage() {
         method: 'POST',
         body: JSON.stringify(form),
       });
+      await refreshAuth();
       // After login, go to profile
       router.push('/profile');
     } catch (err: any) {

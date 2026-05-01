@@ -20,6 +20,10 @@ import { Readable } from "stream";
 const BUCKET = process.env.MINIO_BUCKET || "videos";
 const UPLOAD_EXPIRY = parseInt(process.env.MINIO_UPLOAD_URL_EXPIRY || "300", 10);
 const DOWNLOAD_EXPIRY = parseInt(process.env.MINIO_DOWNLOAD_URL_EXPIRY || "3600", 10);
+const PUBLIC_S3_ENDPOINT =
+  process.env.S3_PUBLIC_ENDPOINT ||
+  process.env.MINIO_PUBLIC_ENDPOINT ||
+  "http://localhost:9000";
 
 /**
  * Generate a presigned PUT URL so the client can upload directly to MinIO.
@@ -46,7 +50,20 @@ async function generateDownloadURL(objectKey) {
     Bucket: BUCKET,
     Key: objectKey,
   });
-  return getSignedUrl(s3Client, command, { expiresIn: DOWNLOAD_EXPIRY });
+  const signed = await getSignedUrl(s3Client, command, { expiresIn: DOWNLOAD_EXPIRY });
+
+  // In Docker, signed URLs may be generated with internal hostnames (e.g. minio:9000),
+  // which browsers outside the container network cannot resolve.
+  try {
+    const signedUrl = new URL(signed);
+    const publicUrl = new URL(PUBLIC_S3_ENDPOINT);
+    signedUrl.protocol = publicUrl.protocol;
+    signedUrl.hostname = publicUrl.hostname;
+    signedUrl.port = publicUrl.port;
+    return signedUrl.toString();
+  } catch {
+    return signed;
+  }
 }
 
 /**

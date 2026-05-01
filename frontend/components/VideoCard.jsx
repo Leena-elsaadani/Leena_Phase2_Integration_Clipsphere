@@ -7,6 +7,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 function formatDuration(secs) {
   const m = Math.floor(secs / 60);
@@ -41,17 +42,93 @@ export default function VideoCard({ video }) {
       ? `${minioBaseUrl}/${video.thumbnailKey}`
       : "/placeholder-thumbnail.svg";
 
+  // Hover-to-play (desktop): keep at most one card playing globally.
+  // This is module-scoped so it works across many cards without extra state management.
+  const videoElRef = useRef(null);
+  const [hovering, setHovering] = useState(false);
+  const hoverTimerRef = useRef(null);
+
+  const previewSrc =
+    video.videoKey && minioBaseUrl ? `${minioBaseUrl}/${video.videoKey}` : null;
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
+
+  // eslint-disable-next-line no-undef
+  if (!globalThis.__clipsphereHoverPlay) {
+    // eslint-disable-next-line no-undef
+    globalThis.__clipsphereHoverPlay = { current: null };
+  }
+  // eslint-disable-next-line no-undef
+  const hoverPlayState = globalThis.__clipsphereHoverPlay;
+
+  const startHover = () => {
+    setHovering(true);
+    if (!previewSrc || !videoElRef.current) return;
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => {
+      const el = videoElRef.current;
+      if (!el) return;
+      // Pause any other preview
+      if (hoverPlayState.current && hoverPlayState.current !== el) {
+        try { hoverPlayState.current.pause(); } catch (_) {}
+      }
+      hoverPlayState.current = el;
+      el.muted = true;
+      el.playsInline = true;
+      const p = el.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }, 120);
+  };
+
+  const endHover = () => {
+    setHovering(false);
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    if (videoElRef.current) {
+      try {
+        videoElRef.current.pause();
+        videoElRef.current.currentTime = 0;
+      } catch (_) {}
+    }
+  };
+
   return (
-    <Link href={`/watch/${video._id}`} className="group block">
+    <Link
+      href={`/watch/${video._id}`}
+      className="group block"
+      onMouseEnter={startHover}
+      onMouseLeave={endHover}
+    >
       {/* Thumbnail */}
       <div className="relative aspect-video bg-zinc-900 rounded-xl overflow-hidden">
+        {/* Still thumbnail */}
         <Image
           src={thumbnailSrc}
           alt={video.title}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className={`object-cover transition-transform duration-300 ${hovering ? "scale-105" : ""}`}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
+
+        {/* Hover preview video (desktop only; hidden on touch devices) */}
+        {previewSrc && (
+          <video
+            ref={videoElRef}
+            src={previewSrc}
+            poster={thumbnailSrc}
+            preload="metadata"
+            muted
+            playsInline
+            loop
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-150 ${
+              hovering ? "opacity-100" : "opacity-0"
+            } hidden md:block`}
+          />
+        )}
+
         {/* Duration badge */}
         <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs font-mono px-1.5 py-0.5 rounded">
           {formatDuration(video.duration)}

@@ -17,7 +17,7 @@ export const createReview = async (videoId, userId, reviewData) => {
     });
 
     // Trending score increment (per engagement weight)
-    await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 15 } });
+    await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 5 } });
 
     await review.populate('user', 'username avatarUrl');
 
@@ -79,8 +79,8 @@ export const deleteReview = async (reviewId, userId, userRole) => {
   const videoId = review.video;
   await review.deleteOne();
 
-  // Keep trendingScore consistent with weighted engagement (+15 per review).
-  await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -15 } });
+  // Keep trendingScore consistent with weighted engagement (+5 per review).
+  await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -5 } });
 
   return { message: 'Review deleted successfully' };
 };

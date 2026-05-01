@@ -5,6 +5,8 @@ import {
   getFollowingFeed_controller,
   getTrendingFeed_controller,
   getStreamURL,
+  incrementViews,
+  getVideoStack,
   updateVideo,
   deleteVideo,
   createReview,
@@ -29,6 +31,8 @@ router.get('/', getAllVideos);
 // Feeds + playback (order: static paths before "/:id/...")
 router.get('/trending', getTrendingFeed_controller);
 router.get('/following', protect, getFollowingFeed_controller);
+router.post('/:id/view', incrementViews);
+router.get('/:id/stack', getVideoStack);
 router.get('/:id/stream-url', protect, getStreamURL);
 
 // Protected routes must be logged in

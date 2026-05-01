@@ -55,3 +55,8 @@ export const getLikesCount = async (videoId) => {
   const count = await Like.countDocuments({ video: videoId });
   return { videoId, likesCount: count };
 };
+
+export const getLikeStatus = async (videoId, userId) => {
+  const exists = await Like.exists({ video: videoId, user: userId });
+  return { videoId, liked: Boolean(exists) };
+};

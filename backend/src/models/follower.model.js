@@ -24,11 +24,10 @@ followerSchema.index({ following: 1 });
 followerSchema.index({ follower: 1 });
 
 // Prevent user from following themselves
-followerSchema.pre('save', function(next) {
-  if (this.follower.equals(this.following)) {
-    return next(new Error('You cannot follow yourself'));
+followerSchema.pre('save', function() {
+  if (this.follower?.equals(this.following)) {
+    throw new Error('You cannot follow yourself');
   }
-  next();
 });
 
 const Follower = mongoose.model("Follower", followerSchema);

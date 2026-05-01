@@ -14,10 +14,28 @@ import reviewRoutes from './routes/review.routes.js';
 
 const app = express();
 
-app.use(cors({
-  origin: env.FRONTEND_URL,
-  credentials: true,
-}));
+// CORS: allow the running frontend origin (dev ports may shift, e.g. 3001 if 3000 is taken)
+const allowedOrigins = new Set(
+  [
+    env.FRONTEND_URL,
+    'http://localhost:3000',
+    'http://localhost:3001',
+    // When both run in Docker, server-side requests may originate from the service hostnames
+    'http://frontend:3000',
+  ].filter(Boolean)
+);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Allow non-browser requests (no Origin header) like curl/Postman/health checks
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.has(origin)) return cb(null, true);
+      return cb(new Error(`CORS blocked origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(cookieParser());
