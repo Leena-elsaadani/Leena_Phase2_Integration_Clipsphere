@@ -37,10 +37,16 @@ export default function VideoCard({ video }) {
   const viewCount = video.views ?? video.viewsCount ?? 0;
 
   const minioBaseUrl = process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL || "";
+  const joinMinio = (base, key) => {
+    if (!base || !key) return null;
+    const cleanBase = base.replace(/\/+$/, "");
+    const baseEndsWithBucket = /\/videos$/i.test(cleanBase);
+    const cleanKey = String(key).replace(/^\/+/, "");
+    const keyWithoutBucket = baseEndsWithBucket ? cleanKey.replace(/^videos\//i, "") : cleanKey;
+    return `${cleanBase}/${keyWithoutBucket}`;
+  };
   const thumbnailSrc =
-    video.thumbnailKey && minioBaseUrl
-      ? `${minioBaseUrl}/${video.thumbnailKey}`
-      : "/placeholder-thumbnail.svg";
+    video.thumbnailKey && minioBaseUrl ? joinMinio(minioBaseUrl, video.thumbnailKey) : "/placeholder-thumbnail.svg";
 
   // Hover-to-play (desktop): keep at most one card playing globally.
   // This is module-scoped so it works across many cards without extra state management.
@@ -49,7 +55,7 @@ export default function VideoCard({ video }) {
   const hoverTimerRef = useRef(null);
 
   const previewSrc =
-    video.videoKey && minioBaseUrl ? `${minioBaseUrl}/${video.videoKey}` : null;
+    video.videoKey && minioBaseUrl ? joinMinio(minioBaseUrl, video.videoKey) : null;
 
   useEffect(() => {
     return () => {
