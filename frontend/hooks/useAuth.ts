@@ -34,7 +34,7 @@ let pendingFetch: Promise<void> | null = null;
 const listeners = new Set<(state: AuthState) => void>();
 
 const emit = () => {
-  listeners.forEach((listener) => listener(authState));
+  listeners.forEach((listener) => listener({ ...authState }));
 };
 
 const setAuthState = (next: Partial<AuthState>) => {
@@ -42,21 +42,20 @@ const setAuthState = (next: Partial<AuthState>) => {
   emit();
 };
 
-const fetchCurrentUser = async (force = false) => {
+const fetchCurrentUser = async (force = false): Promise<void> => {
   if (!force && initialized) return;
-  if (pendingFetch) return pendingFetch;
+  if (pendingFetch && !force) return pendingFetch;
 
   setAuthState({ loading: true, error: '' });
 
   pendingFetch = (async () => {
     try {
       const res = await api('/users/me');
-      setAuthState({ user: res.data.user, error: '' });
+      setAuthState({ user: res.data.user, error: '', loading: false });
     } catch (err) {
-      setAuthState({ user: null, error: 'Not authenticated' });
+      setAuthState({ user: null, error: 'Not authenticated', loading: false });
     } finally {
       initialized = true;
-      setAuthState({ loading: false });
       pendingFetch = null;
     }
   })();
@@ -65,15 +64,19 @@ const fetchCurrentUser = async (force = false) => {
 };
 
 export const refreshAuth = async () => {
+  initialized = false;
   await fetchCurrentUser(true);
 };
 
 export const useAuth = () => {
-  const [state, setState] = useState<AuthState>(authState);
+  const [state, setState] = useState<AuthState>({ ...authState });
 
   useEffect(() => {
+    setState({ ...authState });
     listeners.add(setState);
-    fetchCurrentUser();
+    if (!initialized) {
+      fetchCurrentUser();
+    }
     return () => {
       listeners.delete(setState);
     };
@@ -82,11 +85,12 @@ export const useAuth = () => {
   const logout = async () => {
     try {
       await api('/auth/logout', { method: 'POST' });
-      initialized = true;
-      setAuthState({ user: null, loading: false, error: 'Not authenticated' });
-      window.location.href = '/login';
     } catch (err) {
       console.error('Logout failed');
+    } finally {
+      initialized = true;
+      setAuthState({ user: null, loading: false, error: '' });
+      window.location.href = '/login';
     }
   };
 

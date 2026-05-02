@@ -27,10 +27,10 @@ export default function LoginPage() {
         body: JSON.stringify(form),
       });
       await refreshAuth();
-      // After login, go to profile
-      router.push('/profile');
+      router.push('/feed');
+      router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -55,6 +55,7 @@ export default function LoginPage() {
           font-family: 'DM Sans', sans-serif;
           outline: none;
           transition: all 0.3s ease;
+          box-sizing: border-box;
         }
         input:focus {
           border-color: #8b5cf6;
@@ -64,7 +65,6 @@ export default function LoginPage() {
         input::placeholder { color: #6b7280; }
       `}</style>
 
-      {/* Background orbs */}
       <div style={{
         position: 'fixed', top: '10%', right: '5%',
         width: '300px', height: '300px', borderRadius: '50%',
@@ -78,7 +78,6 @@ export default function LoginPage() {
         filter: 'blur(40px)', pointerEvents: 'none',
       }} />
 
-      {/* Card */}
       <div style={{
         width: '100%', maxWidth: '420px',
         background: '#1a1a1a',
@@ -88,7 +87,6 @@ export default function LoginPage() {
         boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
         position: 'relative', zIndex: 10,
       }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
             <span style={{
@@ -103,7 +101,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Error message */}
         {error && (
           <div style={{
             padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.5rem',
@@ -114,10 +111,8 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
             <div>
               <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '500', display: 'block', marginBottom: '0.4rem' }}>
                 Email
@@ -149,14 +144,19 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-2.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              style={{
+                width: '100%', marginTop: '0.5rem', padding: '0.625rem',
+                borderRadius: '8px', fontSize: '0.875rem', fontWeight: '600',
+                color: 'white', background: '#7c3aed', border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1, transition: 'background 0.2s',
+              }}
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </div>
         </form>
 
-        {/* Register link */}
         <p style={{ textAlign: 'center', marginTop: '1.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
           Don&apos;t have an account?{' '}
           <Link href="/register" style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: '600' }}>

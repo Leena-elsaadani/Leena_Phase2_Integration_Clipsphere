@@ -1,27 +1,24 @@
-/**
- * components/VideoCard.jsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Displays a single video thumbnail + metadata in the feed grid.
- */
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 function formatDuration(secs) {
+  if (!secs && secs !== 0) return '0:00';
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function formatViews(n) {
+  if (!n) return '0';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
 
 function timeAgo(dateStr) {
+  if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins}m ago`;
@@ -36,26 +33,28 @@ export default function VideoCard({ video }) {
   const creator = video.uploader ?? video.owner;
   const viewCount = video.views ?? video.viewsCount ?? 0;
 
-  const minioBaseUrl = process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL || "";
-  const joinMinio = (base, key) => {
-    if (!base || !key) return null;
-    const cleanBase = base.replace(/\/+$/, "");
-    const baseEndsWithBucket = /\/videos$/i.test(cleanBase);
-    const cleanKey = String(key).replace(/^\/+/, "");
-    const keyWithoutBucket = baseEndsWithBucket ? cleanKey.replace(/^videos\//i, "") : cleanKey;
-    return `${cleanBase}/${keyWithoutBucket}`;
+  const minioBaseUrl = process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL || "http://localhost:9000/videos";
+  
+  const getThumbnailUrl = () => {
+    if (!video.thumbnailKey) return null;
+    const cleanBase = minioBaseUrl.replace(/\/+$/, "");
+    const cleanKey = String(video.thumbnailKey).replace(/^\/+/, "").replace(/^thumbnails\//i, "");
+    // thumbnails are in a separate path
+    const base = cleanBase.replace(/\/videos$/i, "");
+    return `${base}/videos/thumbnails/${cleanKey}`;
   };
-  const thumbnailSrc =
-    video.thumbnailKey && minioBaseUrl ? joinMinio(minioBaseUrl, video.thumbnailKey) : "/placeholder-thumbnail.svg";
 
-  // Hover-to-play (desktop): keep at most one card playing globally.
-  // This is module-scoped so it works across many cards without extra state management.
+  const thumbnailSrc = getThumbnailUrl();
+
   const videoElRef = useRef(null);
   const [hovering, setHovering] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const hoverTimerRef = useRef(null);
 
-  const previewSrc =
-    video.videoKey && minioBaseUrl ? joinMinio(minioBaseUrl, video.videoKey) : null;
+  const minioBase = minioBaseUrl.replace(/\/+$/, "");
+  const previewSrc = video.videoKey
+    ? `${minioBase}/${String(video.videoKey).replace(/^\/+/, "")}`
+    : null;
 
   useEffect(() => {
     return () => {
@@ -63,12 +62,9 @@ export default function VideoCard({ video }) {
     };
   }, []);
 
-  // eslint-disable-next-line no-undef
   if (!globalThis.__clipsphereHoverPlay) {
-    // eslint-disable-next-line no-undef
     globalThis.__clipsphereHoverPlay = { current: null };
   }
-  // eslint-disable-next-line no-undef
   const hoverPlayState = globalThis.__clipsphereHoverPlay;
 
   const startHover = () => {
@@ -78,7 +74,6 @@ export default function VideoCard({ video }) {
     hoverTimerRef.current = window.setTimeout(() => {
       const el = videoElRef.current;
       if (!el) return;
-      // Pause any other preview
       if (hoverPlayState.current && hoverPlayState.current !== el) {
         try { hoverPlayState.current.pause(); } catch (_) {}
       }
@@ -101,6 +96,8 @@ export default function VideoCard({ video }) {
     }
   };
 
+  const creatorInitial = creator?.username?.[0]?.toUpperCase() ?? '?';
+
   return (
     <Link
       href={`/watch/${video._id}`}
@@ -110,22 +107,31 @@ export default function VideoCard({ video }) {
     >
       {/* Thumbnail */}
       <div className="relative aspect-video bg-zinc-900 rounded-xl overflow-hidden">
-        {/* Still thumbnail */}
-        <Image
-          src={thumbnailSrc}
-          alt={video.title}
-          fill
-          className={`object-cover transition-transform duration-300 ${hovering ? "scale-105" : ""}`}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        {/* Gradient placeholder — always shown as background */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(135deg, rgba(139,92,246,0.3), rgba(236,72,153,0.2))`,
+          }}
         />
 
-        {/* Hover preview video (desktop only; hidden on touch devices) */}
+        {/* Thumbnail image — only if we have a URL and no error */}
+        {thumbnailSrc && !imgError && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnailSrc}
+            alt={video.title}
+            onError={() => setImgError(true)}
+            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 ${hovering ? "scale-105" : ""}`}
+          />
+        )}
+
+        {/* Hover preview video */}
         {previewSrc && (
           <video
             ref={videoElRef}
             src={previewSrc}
-            poster={thumbnailSrc}
-            preload="metadata"
+            preload="none"
             muted
             playsInline
             loop
@@ -133,6 +139,20 @@ export default function VideoCard({ video }) {
               hovering ? "opacity-100" : "opacity-0"
             } hidden md:block`}
           />
+        )}
+
+        {/* Play overlay on hover */}
+        {hovering && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '50%',
+              background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
+              border: '2px solid rgba(255,255,255,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ color: 'white', fontSize: '1.1rem', marginLeft: '3px' }}>▶</span>
+            </div>
+          </div>
         )}
 
         {/* Duration badge */}
@@ -143,9 +163,8 @@ export default function VideoCard({ video }) {
 
       {/* Meta */}
       <div className="mt-2 flex gap-3">
-        {/* Avatar */}
         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold uppercase">
-          {creator?.username?.[0] ?? "?"}
+          {creatorInitial}
         </div>
 
         <div className="overflow-hidden">
