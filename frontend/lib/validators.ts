@@ -28,3 +28,9 @@ export const reviewSchema = z.object({
 export const tipSchema = z.object({
   amount: z.number().min(1, 'Minimum tip is $1').max(500, 'Maximum tip is $500'),
 });
+
+export type LoginFormData = z.infer<typeof loginSchema>;
+export type RegisterFormData = z.infer<typeof registerSchema>;
+export type UploadFormData = z.infer<typeof uploadSchema>;
+export type ReviewFormData = z.infer<typeof reviewSchema>;
+export type TipFormData = z.infer<typeof tipSchema>;
