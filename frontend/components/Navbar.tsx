@@ -2,13 +2,19 @@
 
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
+import NotificationDropdown from './NotificationDropdown';
 
 export default function Navbar() {
   const { user, loading, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
 
   return (
-    <nav className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur border-b border-zinc-800">
+    <nav className="sticky top-0 z-50 border-b border-zinc-800" style={{
+  background: 'rgba(9, 9, 11, 0.75)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  boxShadow: '0 1px 0 rgba(139,92,246,0.12), 0 4px 24px rgba(0,0,0,0.3)',
+ }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-14 flex flex-wrap items-center justify-between gap-y-2 py-2 sm:py-0">
         <Link href="/" className="text-xl font-black tracking-tight shrink-0">
           <span className="text-violet-400">Clip</span>Sphere
@@ -29,6 +35,8 @@ export default function Navbar() {
               Feed
             </Link>
           )}
+
+          {user && <NotificationDropdown />}
 
           {user && (
             <Link

@@ -1,5 +1,6 @@
 'use client';
 
+import GlassCard from '../../components/GlassCard';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
@@ -19,9 +20,23 @@ interface Health {
   database: { status: string };
 }
 
+// function StatCard({ label, value, icon, accent }: { label: string; value: string | number; icon: string; accent: string }) {
+//   return (
+//     <div style={{ background: '#1a1a1a', borderRadius: '14px', padding: '20px 22px', border: `1px solid ${accent}25` }}>
+//       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+//         <p style={{ color: '#6b7280', fontSize: '0.72rem', fontWeight: '600', letterSpacing: '0.05em', margin: 0 }}>{label}</p>
+//         <span style={{ fontSize: '1.2rem' }}>{icon}</span>
+//       </div>
+//       <p style={{ margin: 0, fontSize: '1.9rem', fontWeight: '800', fontFamily: "'Syne', sans-serif", background: `linear-gradient(135deg, ${accent}, #ec4899)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+//         {value}
+//       </p>
+//     </div>
+//   );
+// }
+
 function StatCard({ label, value, icon, accent }: { label: string; value: string | number; icon: string; accent: string }) {
   return (
-    <div style={{ background: '#1a1a1a', borderRadius: '14px', padding: '20px 22px', border: `1px solid ${accent}25` }}>
+    <GlassCard style={{ padding: '20px 22px', border: `1px solid ${accent}25` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <p style={{ color: '#6b7280', fontSize: '0.72rem', fontWeight: '600', letterSpacing: '0.05em', margin: 0 }}>{label}</p>
         <span style={{ fontSize: '1.2rem' }}>{icon}</span>
@@ -29,7 +44,7 @@ function StatCard({ label, value, icon, accent }: { label: string; value: string
       <p style={{ margin: 0, fontSize: '1.9rem', fontWeight: '800', fontFamily: "'Syne', sans-serif", background: `linear-gradient(135deg, ${accent}, #ec4899)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
         {value}
       </p>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -57,15 +72,47 @@ export default function AdminDashboard() {
       .finally(() => setDataLoading(false));
   }, [user, authLoading, router]);
 
+  // if (authLoading || dataLoading) {
+  //   return (
+  //     <div style={{ minHeight: '100vh', background: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
+  //       <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: '3px solid rgba(139,92,246,0.3)', borderTop: '3px solid #8b5cf6', animation: 'spin 1s linear infinite' }} />
+  //       <p style={{ color: '#6b7280', fontSize: '0.875rem', fontFamily: "'DM Sans', sans-serif" }}>Loading admin dashboard...</p>
+  //       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  //     </div>
+  //   );
+  // }
+
   if (authLoading || dataLoading) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: '3px solid rgba(139,92,246,0.3)', borderTop: '3px solid #8b5cf6', animation: 'spin 1s linear infinite' }} />
-        <p style={{ color: '#6b7280', fontSize: '0.875rem', fontFamily: "'DM Sans', sans-serif" }}>Loading admin dashboard...</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  return (
+    <div style={{ minHeight: '100vh', background: '#0d0d0d', fontFamily: "'DM Sans', sans-serif", color: '#f9fafb' }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');`}</style>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2.5rem 1.5rem' }}>
+        {/* Header skeleton */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div className="skeleton-shimmer" style={{ height: '16px', width: '160px', borderRadius: '4px', marginBottom: '12px' }} />
+          <div className="skeleton-shimmer" style={{ height: '28px', width: '280px', borderRadius: '6px', marginBottom: '8px' }} />
+          <div className="skeleton-shimmer" style={{ height: '14px', width: '200px', borderRadius: '4px' }} />
+        </div>
+        {/* Stat card skeletons */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ background: '#1a1a1a', borderRadius: '14px', padding: '20px 22px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="skeleton-shimmer" style={{ height: '12px', width: '60%', borderRadius: '4px', marginBottom: '12px' }} />
+              <div className="skeleton-shimmer" style={{ height: '36px', width: '80%', borderRadius: '6px' }} />
+            </div>
+          ))}
+        </div>
+        {/* Table skeleton */}
+        <div style={{ background: '#1a1a1a', borderRadius: '14px', padding: '20px 22px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '1.5rem' }}>
+          <div className="skeleton-shimmer" style={{ height: '16px', width: '200px', borderRadius: '4px', marginBottom: '16px' }} />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="skeleton-shimmer" style={{ height: '48px', borderRadius: '10px', marginBottom: '8px' }} />
+          ))}
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   if (!user || user.role !== 'admin') return null;
 

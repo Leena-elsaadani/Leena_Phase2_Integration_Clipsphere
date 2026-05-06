@@ -1,11 +1,14 @@
 'use client';
 
+import SkeletonWatchPage from '../../../components/SkeletonWatchPage';
+import GlassCard from '../../../components/GlassCard';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { videoApi } from '@/lib/api';
 import { api } from '../../../services/api';
 import LikeButton from '../../../components/LikeButton';
 import ShareButton from '../../../components/ShareButton';
+import TipButton from '../../../components/TipButton';
 import CommentSection from '../../../components/CommentSection';
 import ReviewSection from '../../../components/ReviewSection';
 import { useAuth } from '../../../hooks/useAuth';
@@ -20,6 +23,7 @@ function formatDuration(secs) {
 export default function WatchPage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
 
   const videoRef = useRef(null);
@@ -35,6 +39,8 @@ export default function WatchPage() {
   const [stack, setStack] = useState({ videos: [], index: 0 });
 
   const [likesCount, setLikesCount] = useState(0);
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [paymentMessage, setPaymentMessage] = useState('');
   const [likedByMe, setLikedByMe] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -55,6 +61,23 @@ export default function WatchPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [aspect, setAspect] = useState(null);
   const [viewCount, setViewCount] = useState(0);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (!status) return;
+
+    if (status === 'success') {
+      setPaymentStatus(status);
+      setPaymentMessage('Tip successful! Thank you for supporting the creator.');
+    } else if (status === 'cancel') {
+      setPaymentStatus(status);
+      setPaymentMessage('Tip canceled. No charge was made.');
+    }
+
+    if (id) {
+      router.replace(`/watch/${id}`);
+    }
+  }, [searchParams, id, router]);
 
   useEffect(() => {
     if (!id) return;
@@ -311,13 +334,20 @@ export default function WatchPage() {
     }
   };
 
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+  //       <div className="w-10 h-10 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin" />
+  //     </div>
+  //   );
+
   if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-zinc-700 border-t-violet-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  return (
+    <div style={{ minHeight: '100vh', background: '#0d0d0d' }}>
+      <SkeletonWatchPage />
+    </div>
+  );
+}
 
   if (error) {
     return (
@@ -512,10 +542,24 @@ export default function WatchPage() {
               </p>
             )}
 
+            {paymentMessage && (
+              <div style={{ marginBottom: '1.5rem', padding: '14px 16px', borderRadius: '14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#a7f3d0' }}>
+                {paymentMessage}
+              </div>
+            )}
+
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '2rem', alignItems: 'center' }}>
               <LikeButton videoId={videoMeta._id} initialCount={likesCount} initialLiked={likedByMe} />
               <ShareButton videoId={videoMeta._id} />
+              {user && ownerId && String(user._id) !== String(ownerId) && (
+                <TipButton
+                  videoId={videoMeta._id}
+                  recipientId={ownerId}
+                  recipientUsername={creatorUsername}
+                  currentUserId={user?._id}
+                />
+              )}
 
               {(isOwner || isAdmin) && (
                 <>
@@ -536,7 +580,7 @@ export default function WatchPage() {
             {/* Edit modal */}
             {editMode && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-                <div style={{ background: '#1a1a1a', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '12px', padding: '2rem', maxWidth: '520px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+                <GlassCard style={{ padding: '2rem', maxWidth: '520px', width: '90%' }}>
                   <h3 style={{ marginTop: 0, color: '#f9fafb' }}>Edit Video</h3>
                   <input
                     type="text"
@@ -557,14 +601,14 @@ export default function WatchPage() {
                       {editLoading ? 'Saving...' : 'Save'}
                     </button>
                   </div>
-                </div>
+                </GlassCard>
               </div>
             )}
 
             {/* Delete confirmation */}
             {deleteConfirm && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-                <div style={{ background: '#1a1a1a', border: '1px solid rgba(236,72,153,0.2)', borderRadius: '12px', padding: '2rem', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+                <GlassCard style={{ padding: '2rem', maxWidth: '420px', width: '90%' }}>
                   <h3 style={{ marginTop: 0, color: '#f9fafb' }}>Delete Video?</h3>
                   <p style={{ color: '#9ca3af' }}>This action cannot be undone. Are you sure?</p>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -573,7 +617,7 @@ export default function WatchPage() {
                       {deleteLoading ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
-                </div>
+                </GlassCard>
               </div>
             )}
           </>

@@ -7,7 +7,7 @@
       "dom",
       "dom.iterable"
     ],
-    "module": "esnext",
+    "module": "node16",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -32,7 +32,8 @@
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
+    "ignoreDeprecations": "6.0",
     "isolatedModules": true,
     "plugins": [
       {
