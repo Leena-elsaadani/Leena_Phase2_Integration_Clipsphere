@@ -1,10 +1,13 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import { initSocket } from './socket/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Stripe and other services import env at module load time,
+// so we must set process.env BEFORE any other imports
+import { initSocket } from './socket/index.js';
 
 // Dynamic imports after dotenv.config()
 const app = (await import('./app.js')).default;
