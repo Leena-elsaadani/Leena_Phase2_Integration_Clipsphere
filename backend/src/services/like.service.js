@@ -3,6 +3,7 @@ import Video from '../models/video.model.js';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
+import { getIO } from '../socket/index.js';
 
 export const likeVideo = async (videoId, userId) => {
   const video = await Video.findById(videoId).populate('owner');
@@ -11,6 +12,22 @@ export const likeVideo = async (videoId, userId) => {
   try {
     await Like.create({ user: userId, video: videoId });
     await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 10 } });
+    try {
+  const ownerId = video.owner?._id?.toString() || video.owner?.toString();
+  if (ownerId && ownerId !== userId.toString()) {
+    const liker = await User.findById(userId).select('username');
+
+    getIO().to(ownerId).emit('notification:like', {
+      type: 'like',
+      actorUsername: liker?.username || 'Someone',
+      videoId: video._id.toString(),
+      videoTitle: video.title,
+      timestamp: new Date().toISOString(),
+    });
+  }
+} catch (socketErr) {
+  console.error('[Socket] Failed to emit like notification:', socketErr.message);
+}
 
     // Engagement email — only if owner is different from liker.
     // Email sending is best-effort and must never crash the like endpoint.
