@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { videoApi } from '@/lib/api';
+import { useAuth } from '../hooks/useAuth';
 
 function formatDuration(secs: number) {
   if (!secs || Number.isNaN(secs)) return '0:00';
@@ -20,6 +21,7 @@ function formatViewsHome(n: number) {
 const CATEGORIES = ['🔥 Trending', '🎯 For You', '🎬 Cinema', '🎵 Music', '🌍 Travel', '⚡ Action'];
 
 export default function Home() {
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('🔥 Trending');
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -147,7 +149,11 @@ export default function Home() {
             fontFamily: "'Syne', sans-serif",
             letterSpacing: '-0.02em',
           }}>
-            Create.<br />Share.<br />Go Viral.
+            {user ? (
+              <>Create.<br />Share.<br />Go Viral.</>
+            ) : (
+              <>Welcome to<br />ClipSphere</>
+            )}
           </h1>
 
           <p style={{
@@ -159,7 +165,7 @@ export default function Home() {
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/register" className="animate-pulse-glow" style={{
+            <Link href={user ? "/upload" : "/register"} className="animate-pulse-glow" style={{
               padding: '0.875rem 2rem', borderRadius: '100px',
               background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
               color: 'white', textDecoration: 'none',
@@ -167,7 +173,7 @@ export default function Home() {
               fontFamily: "'Syne', sans-serif",
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
             }}>
-              Start Creating ↗
+              {user ? 'Upload your next clip ↗' : 'Start Creating ↗'}
             </Link>
             <Link
               href="/feed"
@@ -452,9 +458,9 @@ export default function Home() {
             fontFamily: "'DM Sans', sans-serif", fontSize: '1rem',
             position: 'relative',
           }}>
-            Join millions of creators on ClipSphere today.
+            {user ? `Welcome back, @${user.username}. Keep creating.` : 'Join millions of creators on ClipSphere today.'}
           </p>
-          <Link href="/register" className="animate-pulse-glow" style={{
+          <Link href={user ? "/upload" : "/register"} className="animate-pulse-glow" style={{
             padding: '1rem 2.5rem', borderRadius: '100px',
             background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
             color: 'white', textDecoration: 'none',
@@ -462,7 +468,7 @@ export default function Home() {
             fontFamily: "'Syne', sans-serif",
             display: 'inline-block', position: 'relative',
           }}>
-            Join ClipSphere Free ↗
+            {user ? 'Upload New Video ↗' : 'Join ClipSphere Free ↗'}
           </Link>
         </div>
       </section>

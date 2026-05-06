@@ -1,8 +1,7 @@
 /**
  * lib/api.js
- * ─────────────────────────────────────────────────────────────────────────────
  * Thin fetch wrapper that prepends NEXT_PUBLIC_API_URL.
- * Backend uses an httpOnly `token` cookie for auth; we rely on `credentials: "include"`.
+ * Backend uses an httpOnly `token` cookie for auth.
  */
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
@@ -12,7 +11,6 @@ async function request(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  // Don't set Content-Type for FormData — browser sets it with the boundary
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
@@ -22,42 +20,34 @@ async function request(path, options = {}) {
     headers,
     credentials: "include",
   });
-  const data = await res.json();
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
 
   if (!res.ok) {
-    throw new Error(data.message || `Request failed: ${res.status}`);
+    const msg = data?.message || data?.errors?.[0]?.message || `Request failed: ${res.status}`;
+    throw new Error(msg);
   }
 
   return data;
 }
 
-// ── Video endpoints ───────────────────────────────────────────────────────────
-
 export const videoApi = {
-  /**
-   * Paginated public feed
-   * @param {number} limit
-   * @param {number} skip
-   */
   getFeed: (limit = 10, skip = 0) =>
     request(`/videos?limit=${limit}&skip=${skip}`),
 
-  /** Paginated following feed (requires auth) */
   getFollowingFeed: (limit = 10, skip = 0) =>
     request(`/videos/following?limit=${limit}&skip=${skip}`),
 
-  /** Paginated trending feed */
   getTrendingFeed: (limit = 10, skip = 0) =>
     request(`/videos/trending?limit=${limit}&skip=${skip}`),
 
-  /** Get presigned stream URL for a video */
   getStreamURL: (id) => request(`/videos/${id}/stream-url`),
 
-  /**
-   * Upload a video with progress tracking via XMLHttpRequest.
-   * @param {FormData} formData  - { video, title, description, tags, visibility }
-   * @param {Function} onProgress - (percent: number) => void
-   */
   uploadVideo: (formData, onProgress) =>
     new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();

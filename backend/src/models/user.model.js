@@ -58,8 +58,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'suspended', 'banned'],
       default: 'active'
-    }
+    },
+    balance: { type: Number, default: 0 }, // in cents
+    
   },
+  
+  
   { timestamps: true }
 );
 

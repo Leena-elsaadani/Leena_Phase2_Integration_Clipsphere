@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 
 interface Props {
@@ -13,6 +13,15 @@ export default function LikeButton({ videoId, initialCount, initialLiked = false
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const [pending, setPending] = useState(false);
+
+  // Keep local state in sync when parent loads true server state later.
+  useEffect(() => {
+    setLiked(initialLiked);
+  }, [initialLiked, videoId]);
+
+  useEffect(() => {
+    setCount(initialCount);
+  }, [initialCount, videoId]);
 
   const handleToggle = async () => {
     if (pending) return;

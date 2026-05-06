@@ -2,6 +2,7 @@ import Comment from '../models/comment.model.js';
 import Video from '../models/video.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
+import { getIO } from '../socket/index.js';
 
 export const addComment = async (videoId, userId, text) => {
   const video = await Video.findById(videoId).populate('owner', 'username email');
@@ -10,13 +11,35 @@ export const addComment = async (videoId, userId, text) => {
   const comment = await Comment.create({ text, user: userId, video: videoId });
   await comment.populate('user', 'username avatarUrl');
 
-  // Trending score increment (per engagement weight)
+  // Trending score increment
   await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 5 } });
 
-  // Engagement email — best-effort; do not crash the API on email failures
+  /* ================= SOCKET NOTIFICATION ================= */
+  try {
+    const ownerId =
+      video.owner?._id?.toString() || video.owner?.toString();
+
+    const actorUsername = comment.user?.username;
+
+    if (ownerId && ownerId !== userId.toString()) {
+      getIO().to(ownerId).emit('notification:comment', {
+        type: 'comment',
+        actorUsername: actorUsername || 'Someone',
+        videoId: video._id.toString(),
+        videoTitle: video.title,
+        preview: text.slice(0, 80),
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.error('[Socket] Failed to emit comment notification:', err.message);
+  }
+
+  /* ================= EMAIL (best-effort) ================= */
   if (video.owner && video.owner._id.toString() !== userId.toString()) {
     try {
       const commenterUsername = comment.user?.username;
+
       if (commenterUsername && video.owner.email) {
         sendEngagementEmail(
           video.owner.email,

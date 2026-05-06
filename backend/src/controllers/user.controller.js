@@ -18,6 +18,15 @@ export const updateMe = async (req, res, next) => {
   }
 };
 
+export const getUserById = async (req, res, next) => {
+  try {
+    const user = await userService.getMe(req.params.id);
+    res.json({ status: 'success', data: { user } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const followUser = async (req, res, next) => {
   try {
     const result = await userService.followUser(req.user.id, req.params.id);

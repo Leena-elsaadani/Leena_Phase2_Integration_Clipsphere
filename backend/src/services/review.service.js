@@ -3,6 +3,7 @@ import Video from '../models/video.model.js';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
+import { getIO } from '../socket/index.js';
 
 export const createReview = async (videoId, userId, reviewData) => {
   const video = await Video.findById(videoId);
@@ -16,16 +17,37 @@ export const createReview = async (videoId, userId, reviewData) => {
       video: videoId,
     });
 
-    // Trending score increment (per engagement weight)
-    await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 15 } });
+    // Trending score increment
+    await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 5 } });
 
     await review.populate('user', 'username avatarUrl');
 
-    // Engagement email — best-effort; do not crash the review endpoint
+    /* ================= SOCKET NOTIFICATION ================= */
+    try {
+      const ownerId = video.owner?.toString();
+
+      const actorUsername = review.user?.username;
+
+      if (ownerId && ownerId !== userId.toString()) {
+        getIO().to(ownerId).emit('notification:review', {
+          type: 'review',
+          actorUsername: actorUsername || 'Someone',
+          videoId: video._id.toString(),
+          videoTitle: video.title,
+          preview: (reviewData.comment || '').slice(0, 80),
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (socketErr) {
+      console.error('[Socket] Failed to emit review notification:', socketErr.message);
+    }
+
+    /* ================= EMAIL (best-effort) ================= */
     if (video.owner && video.owner.toString() !== userId.toString()) {
       try {
         const owner = await User.findById(video.owner).select('username email');
         const reviewer = await User.findById(userId).select('username');
+
         if (owner && reviewer) {
           sendEngagementEmail(
             owner.email,
@@ -33,7 +55,7 @@ export const createReview = async (videoId, userId, reviewData) => {
             reviewer.username,
             'reviewed',
             video.title,
-            'newComment'
+            'newReview'
           ).catch((emailErr) => {
             console.error('Failed to send review email:', emailErr.message);
           });
@@ -60,12 +82,7 @@ export const getReviews = async (videoId) => {
     .populate('user', 'username avatarUrl')
     .sort({ createdAt: -1 });
 
-  const avgRating =
-    reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-      : 0;
-
-  return { reviews, avgRating: Math.round(avgRating * 10) / 10, total: reviews.length };
+  return reviews;
 };
 
 export const deleteReview = async (reviewId, userId, userRole) => {
@@ -79,8 +96,8 @@ export const deleteReview = async (reviewId, userId, userRole) => {
   const videoId = review.video;
   await review.deleteOne();
 
-  // Keep trendingScore consistent with weighted engagement (+15 per review).
-  await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -15 } });
+  // Keep trendingScore consistent with weighted engagement (+5 per review).
+  await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -5 } });
 
   return { message: 'Review deleted successfully' };
 };

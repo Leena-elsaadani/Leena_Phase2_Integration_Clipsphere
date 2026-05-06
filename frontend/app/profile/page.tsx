@@ -1,11 +1,62 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { api } from '../../services/api';
+import VideoCard from '../../components/VideoCard';
 
 export default function ProfilePage() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const [videos, setVideos] = useState<any[]>([]);
+  const [videosLoading, setVideosLoading] = useState(true);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?._id) return;
+    let cancelled = false;
+    setVideosLoading(true);
+    api('/videos?limit=100&skip=0')
+      .then((res) => {
+        if (cancelled) return;
+        const all = res?.data?.videos ?? [];
+        const mine = all.filter((v: any) => {
+          const ownerId = v?.owner?._id || v?.owner || v?.uploader?._id || v?.uploader;
+          return String(ownerId) === String(user._id);
+        });
+        setVideos(mine);
+      })
+      .catch(() => {
+        if (!cancelled) setVideos([]);
+      })
+      .finally(() => {
+        if (!cancelled) setVideosLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+    let cancelled = false;
+    Promise.all([api(`/users/${user._id}/followers`), api(`/users/${user._id}/following`)])
+      .then(([followers, following]) => {
+        if (cancelled) return;
+        setFollowersCount(Array.isArray(followers) ? followers.length : 0);
+        setFollowingCount(Array.isArray(following) ? following.length : 0);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFollowersCount(0);
+        setFollowingCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?._id]);
 
   if (loading) {
     return (
@@ -48,6 +99,13 @@ export default function ProfilePage() {
 
       {/* Profile content */}
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem 1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="mb-4 text-sm font-medium text-zinc-400 hover:text-white bg-transparent border border-zinc-700 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          ← Back
+        </button>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
           <button
@@ -95,6 +153,9 @@ export default function ProfilePage() {
               {user.username}
             </h1>
             <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>{user.email}</p>
+            <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '0.4rem' }}>
+              Followers: {followersCount} · Following: {followingCount}
+            </p>
           </div>
         </div>
 
@@ -159,6 +220,26 @@ export default function ProfilePage() {
         >
           Edit Profile
         </button>
+
+        <div style={{ marginTop: '2rem' }}>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: '700', fontSize: '1.25rem', marginBottom: '1rem' }}>
+            Uploaded videos
+          </h2>
+
+          {videosLoading && <p style={{ color: '#6b7280' }}>Loading videos...</p>}
+
+          {!videosLoading && videos.length === 0 && (
+            <p style={{ color: '#6b7280' }}>No uploaded videos yet.</p>
+          )}
+
+          {!videosLoading && videos.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-8">
+              {videos.map((video) => (
+                <VideoCard key={video._id} video={video} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
