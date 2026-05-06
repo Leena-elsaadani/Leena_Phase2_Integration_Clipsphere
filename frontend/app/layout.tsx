@@ -1,6 +1,8 @@
 import './globals.css';
 import { ReactNode } from 'react';
 import Navbar from '../components/Navbar';
+import { NotificationProvider } from '../context/NotificationContext';
+import ToastNotification from '../components/ToastNotification';
 
 export const metadata = {
   title: 'ClipSphere',
@@ -11,9 +13,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className="bg-zinc-950 min-h-screen">
-        <Navbar />
-
-        {children}
+        <NotificationProvider>
+          <Navbar />
+          <ToastNotification />
+          {children}
+        </NotificationProvider>
       </body>
     </html>
   );
