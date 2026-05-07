@@ -101,8 +101,8 @@ services:
     build:
       context: ../services/auth-service
       dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     env_file:
       - ../services/auth-service/.env
     volumes:
@@ -124,8 +124,8 @@ services:
     build:
       context: ../services/user-service
       dockerfile: Dockerfile
-    ports:
-      - "3003:3003"
+    expose:
+      - "3003"
     env_file:
       - ../services/user-service/.env
     volumes:
@@ -142,3 +142,77 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+
+  chat-service:
+    build:
+      context: ../services/chat-service
+      dockerfile: Dockerfile
+    expose:
+      - "3002"
+    env_file:
+      - ../services/chat-service/.env.example
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  dashboard-service:
+    build:
+      context: ../services/dashboard-service
+      dockerfile: Dockerfile
+    expose:
+      - "3004"
+    env_file:
+      - ../services/dashboard-service/.env.example
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3004/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  api-gateway:
+    build:
+      context: ../api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../keys:/etc/gateway/keys:ro
+    environment:
+      - JWT_EXPECTED_ISSUER=
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      dashboard-service:
+        condition: service_healthy
+    networks:
+      - app-network
