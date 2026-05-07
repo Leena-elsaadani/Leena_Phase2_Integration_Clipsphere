@@ -13,22 +13,31 @@ export function initSocket(httpServer) {
   });
 
   io.use((socket, next) => {
-    const token =
-      socket.handshake.auth?.token ||
-      socket.handshake.headers?.cookie
-        ?.split(';')
-        .find((c) => c.trim().startsWith('token='))
-        ?.split('=')[1];
+    // Try to extract token from multiple sources
+    let token = socket.handshake.auth?.token;
+    
+    // If not in auth, try extracting from cookie header
+    if (!token && socket.handshake.headers?.cookie) {
+      const cookies = socket.handshake.headers.cookie
+        .split(';')
+        .map((c) => c.trim());
+      const tokenCookie = cookies.find((c) => c.startsWith('token='));
+      if (tokenCookie) {
+        token = tokenCookie.substring(6); // Remove 'token=' prefix
+      }
+    }
 
-    if (!token) return next(new Error('Authentication required'));
+    if (!token) {
+      return next(new Error('Authentication required: no token found'));
+    }
 
     try {
       const decoded = jwt.verify(token, env.JWT_SECRET);
       socket.userId = decoded.id;
       socket.userRole = decoded.role;
       next();
-    } catch {
-      next(new Error('Invalid token'));
+    } catch (err) {
+      next(new Error(`Invalid token: ${err.message}`));
     }
   });
 

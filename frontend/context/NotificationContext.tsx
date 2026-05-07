@@ -31,12 +31,30 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
+  // Load notifications from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('notifications');
+    if (stored) {
+      try {
+        setNotifications(JSON.parse(stored));
+      } catch {
+        setNotifications([]);
+      }
+    }
+  }, []);
+
+  // Persist notifications whenever they change
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
   useEffect(() => {
     if (!user) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      localStorage.removeItem('notifications');
       setNotifications([]);
       return;
     }
@@ -47,9 +65,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     const socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:5000', {
       withCredentials: true,
-      auth: {
-        userId: user._id,
-      },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
     });
 
     socketRef.current = socket;

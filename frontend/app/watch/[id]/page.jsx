@@ -63,15 +63,15 @@ export default function WatchPage() {
   const [viewCount, setViewCount] = useState(0);
 
   useEffect(() => {
-    const status = searchParams.get('status');
-    if (!status) return;
+    const tip = searchParams.get('tip');
+    if (!tip) return;
 
-    if (status === 'success') {
-      setPaymentStatus(status);
+    if (tip === 'success') {
+      setPaymentStatus('success');
       setPaymentMessage('Tip successful! Thank you for supporting the creator.');
-    } else if (status === 'cancel') {
-      setPaymentStatus(status);
-      setPaymentMessage('Tip canceled. No charge was made.');
+    } else if (tip === 'cancelled') {
+      setPaymentStatus('cancelled');
+      setPaymentMessage('Tip cancelled. No charge was made.');
     }
 
     if (id) {

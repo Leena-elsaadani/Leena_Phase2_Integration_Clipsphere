@@ -1,53 +1,16 @@
 /**
- * models/Video.js
- * ─────────────────────────────────────────────────────────────────────────────
- * Mongoose schema for a ClipSphere video document.
+ * DEPRECATED: This file is no longer used.
+ * 
+ * Use models/video.model.js instead, which provides:
+ * - Complete video schema with all fields
+ * - Proper indexes and validation
+ * - Updated Mongoose 8+ syntax
+ * 
+ * Do not import or use this file.
  */
 
-import mongoose from "mongoose";
+throw new Error('Video.js is deprecated. Use models/video.model.js instead');
 
-const videoSchema = new mongoose.Schema(
-  {
-    // ── Ownership ──────────────────────────────────────────────────────────
-    uploader: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-
-    // ── Metadata ───────────────────────────────────────────────────────────
-    title: {
-      type: String,
-      required: [true, "Title is required"],
-      trim: true,
-      maxlength: [100, "Title cannot exceed 100 characters"],
-    },
-    description: {
-      type: String,
-      trim: true,
-      maxlength: [2000, "Description cannot exceed 2000 characters"],
-      default: "",
-    },
-    tags: [{ type: String, trim: true, lowercase: true }],
-
-    // ── Storage ────────────────────────────────────────────────────────────
-    /** MinIO object key, e.g. "videos/abc123.mp4" */
-    objectKey: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    /** Optional thumbnail object key */
-    thumbnailKey: {
-      type: String,
-      default: null,
-    },
-
-    // ── Video properties ───────────────────────────────────────────────────
-    duration: {
-      type: Number, // seconds
-      required: true,
     },
     fileSizeBytes: {
       type: Number,

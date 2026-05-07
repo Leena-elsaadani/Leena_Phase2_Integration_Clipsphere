@@ -1,5 +1,5 @@
 import express from 'express';
-import { createCheckout, stripeWebhook, getBalance, getHistory } from '../controllers/payment.controller.js';
+import { createCheckout, stripeWebhook, getBalance, getHistory, getEarnings } from '../controllers/payment.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -9,5 +9,6 @@ router.use(protect);
 router.post('/checkout', createCheckout);
 router.get('/balance', getBalance);
 router.get('/history', getHistory);
+router.get('/earnings', getEarnings);
 
 export default router;

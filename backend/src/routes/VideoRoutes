@@ -1,34 +1,12 @@
 /**
- * routes/videoRoutes.js
- * ─────────────────────────────────────────────────────────────────────────────
- * All video-related HTTP routes.
- * Assumes `protect` middleware exists in middleware/auth.js and attaches req.user.
+ * DEPRECATED: This file is no longer used.
+ * 
+ * Use routes/video.routes.js instead, which provides:
+ * - ES6 modules (instead of CommonJS)
+ * - Updated controller imports
+ * - Current video route definitions
+ * 
+ * Do not import or use this file.
  */
 
-const express = require("express");
-const router = express.Router();
-
-const videoController = require("../controllers/videoController");
-const { uploadSingle, validateVideoDuration } = require("../middleware/videoUpload");
-const { protect } = require("../middleware/auth"); // your existing JWT middleware
-
-// ── Public ────────────────────────────────────────────────────────────────────
-router.get("/", videoController.getFeed);
-router.get("/trending", videoController.getTrendingFeed);
-
-// ── Authenticated ─────────────────────────────────────────────────────────────
-router.get("/following", protect, videoController.getFollowingFeed);
-router.get("/presigned-upload", protect, videoController.getPresignedUploadURL);
-router.get("/:id/stream-url", protect, videoController.getStreamURL);
-
-// ── Upload pipeline ───────────────────────────────────────────────────────────
-// Order matters: protect → multer → ffprobe → controller
-router.post(
-  "/upload",
-  protect,
-  uploadSingle,          // parse multipart, reject non-mp4, enforce size limit
-  validateVideoDuration, // ffprobe check, rejects > MAX_VIDEO_DURATION_SEC
-  videoController.uploadVideo
-);
-
-module.exports = router;
+throw new Error('VideoRoutes is deprecated. Use routes/video.routes.js instead');

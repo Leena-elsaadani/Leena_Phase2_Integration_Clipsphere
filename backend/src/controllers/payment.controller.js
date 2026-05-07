@@ -30,6 +30,51 @@ export const getBalance = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+export const getEarnings = async (req, res, next) => {
+  try {
+    const creatorId = req.user.id;
+    
+    // Get earnings summary
+    const transactions = await Transaction.find({
+      recipient: creatorId,
+    }).populate('videoId', 'title');
+    
+    const completed = transactions.filter(t => t.status === 'completed');
+    const pending = transactions.filter(t => t.status === 'pending');
+    const failed = transactions.filter(t => t.status === 'failed');
+    
+    const completedAmount = completed.reduce((sum, t) => sum + t.amount, 0);
+    const pendingAmount = pending.reduce((sum, t) => sum + t.amount, 0);
+    const failedAmount = failed.reduce((sum, t) => sum + t.amount, 0);
+    
+    const balanceInCents = (await User.findById(creatorId).select('balance')).balance || 0;
+    
+    res.json({
+      status: 'success',
+      data: {
+        totalEarned: completedAmount,
+        totalEarnedUSD: (completedAmount / 100).toFixed(2),
+        pendingEarnings: pendingAmount,
+        pendingEarningsUSD: (pendingAmount / 100).toFixed(2),
+        currentBalance: balanceInCents,
+        currentBalanceUSD: (balanceInCents / 100).toFixed(2),
+        transactionCount: transactions.length,
+        completedCount: completed.length,
+        pendingCount: pending.length,
+        failedCount: failed.length,
+        recentTransactions: completed.slice(0, 10).map(t => ({
+          amount: t.amount,
+          amountUSD: (t.amount / 100).toFixed(2),
+          from: t.sender,
+          videoTitle: t.videoId?.title || 'Unknown',
+          date: t.createdAt,
+          status: t.status,
+        })),
+      }
+    });
+  } catch (err) { next(err); }
+};
+
 export const getHistory = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
