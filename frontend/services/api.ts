@@ -1,6 +1,10 @@
-const API_URL =
+const rawApiUrl =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
   'http://localhost:5000/api/v1';
+
+const API_URL = rawApiUrl.endsWith('/api/v1')
+  ? rawApiUrl
+  : rawApiUrl.replace(/\/+$/, '') + '/api/v1';
 
 /**
  * Fetch helper: sends cookies to the Express API (JWT httpOnly cookie)
