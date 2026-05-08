@@ -17,6 +17,24 @@ services:
     networks:
       - clipsphere_net
 
+  # ─── Redis Cache ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: clipsphere_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - clipsphere_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # ─── MinIO (S3-compatible object storage) ──────────────────────────────────
   minio:
     image: minio/minio:latest
@@ -80,9 +98,15 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_your_secret_key}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_your_publishable_key}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_test_your_webhook_secret}
+      
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CACHE_TTL: 90
     depends_on:
       - mongo
       - minio
+      - redis
     networks:
       - clipsphere_net
 
@@ -107,6 +131,7 @@ services:
 volumes:
   mongo_data:
   minio_data:
+  redis_data:
 
 networks:
   clipsphere_net:

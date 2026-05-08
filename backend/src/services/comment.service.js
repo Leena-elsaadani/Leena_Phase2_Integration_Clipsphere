@@ -3,6 +3,7 @@ import Video from '../models/video.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
 import { getIO } from '../socket/index.js';
+import { invalidateTrendingCache } from './Videoservice.js';
 
 export const addComment = async (videoId, userId, text) => {
   const video = await Video.findById(videoId).populate('owner', 'username email');
@@ -13,6 +14,9 @@ export const addComment = async (videoId, userId, text) => {
 
   // Trending score increment
   await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 5 } });
+  
+  // Invalidate trending feed cache on engagement change
+  await invalidateTrendingCache();
 
   /* ================= SOCKET NOTIFICATION ================= */
   try {
@@ -77,5 +81,9 @@ export const deleteComment = async (commentId, userId) => {
 
   // Keep trendingScore consistent when comments are removed
   await Video.findByIdAndUpdate(comment.video, { $inc: { trendingScore: -5 } });
+  
+  // Invalidate trending feed cache on engagement change
+  await invalidateTrendingCache();
+  
   return { message: 'Comment deleted successfully' };
 };

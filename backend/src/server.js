@@ -8,6 +8,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 // Stripe and other services import env at module load time,
 // so we must set process.env BEFORE any other imports
 import { initSocket } from './socket/index.js';
+import { initRedis, closeRedis } from './config/redis.js';
 
 // Dynamic imports after dotenv.config()
 const app = (await import('./app.js')).default;
@@ -15,8 +16,9 @@ const connectDB = (await import('./config/db.js')).default;
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB before starting server
+// Connect to MongoDB and Redis before starting server
 await connectDB();
+await initRedis();
 
 // Start server
 const server = app.listen(PORT, () => {
@@ -27,13 +29,17 @@ initSocket(server);
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error(' Unhandled Rejection:', err);
-  server.close(() => process.exit(1));
+  server.close(async () => {
+    await closeRedis();
+    process.exit(1);
+  });
 });
 
 // Handle SIGTERM
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
+  server.close(async () => {
+    await closeRedis();
     console.log('Process terminated');
   });
 });

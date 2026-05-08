@@ -4,6 +4,7 @@ import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
 import { getIO } from '../socket/index.js';
+import { invalidateTrendingCache } from './Videoservice.js';
 
 export const createReview = async (videoId, userId, reviewData) => {
   const video = await Video.findById(videoId);
@@ -19,6 +20,9 @@ export const createReview = async (videoId, userId, reviewData) => {
 
     // Trending score increment
     await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 5 } });
+    
+    // Invalidate trending feed cache on engagement change
+    await invalidateTrendingCache();
 
     await review.populate('user', 'username avatarUrl');
 
@@ -98,6 +102,9 @@ export const deleteReview = async (reviewId, userId, userRole) => {
 
   // Keep trendingScore consistent with weighted engagement (+5 per review).
   await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -5 } });
+  
+  // Invalidate trending feed cache on engagement change
+  await invalidateTrendingCache();
 
   return { message: 'Review deleted successfully' };
 };

@@ -4,6 +4,7 @@ import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEngagementEmail } from './email.service.js';
 import { getIO } from '../socket/index.js';
+import { invalidateTrendingCache } from './Videoservice.js';
 
 export const likeVideo = async (videoId, userId) => {
   const video = await Video.findById(videoId).populate('owner');
@@ -12,6 +13,10 @@ export const likeVideo = async (videoId, userId) => {
   try {
     await Like.create({ user: userId, video: videoId });
     await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: 10 } });
+    
+    // Invalidate trending feed cache on engagement change
+    await invalidateTrendingCache();
+    
     try {
   const ownerId = video.owner?._id?.toString() || video.owner?.toString();
   if (ownerId && ownerId !== userId.toString()) {
@@ -65,6 +70,10 @@ export const unlikeVideo = async (videoId, userId) => {
   const like = await Like.findOneAndDelete({ user: userId, video: videoId });
   if (!like) throw new ApiError(404, 'You have not liked this video');
   await Video.findByIdAndUpdate(videoId, { $inc: { trendingScore: -10 } });
+  
+  // Invalidate trending feed cache on engagement change
+  await invalidateTrendingCache();
+  
   return { message: 'Video unliked successfully' };
 };
 

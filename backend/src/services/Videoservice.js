@@ -5,13 +5,15 @@
  *   - uploadVideo()      → upload to MinIO, then save MongoDB doc atomically
  *   - getPublicFeed()    → paginated public feed (newest)
  *   - getFollowingFeed() → paginated feed filtered by followed users
- *   - getTrendingFeed()  → paginated feed sorted by engagementScore
+ *   - getTrendingFeed()  → paginated feed sorted by engagementScore (with Redis caching)
  *   - generateVideoURL() → presigned playback URL for a single video
  */
 
 import { v4 as uuidv4 } from "uuid";
 import Video from "../models/video.model.js";
 import { uploadBuffer, deleteObject, generateDownloadURL } from "./s3Service.js";
+import { cacheAside, invalidateCachePattern } from "../utils/cache.js";
+import env from "../config/env.js";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "ffmpeg-static";
 import fs from "fs/promises";
@@ -158,6 +160,11 @@ async function uploadVideo({
     throw dbErr; // re-throw for the controller
   }
 
+  // 5. Invalidate trending feed cache (new video changes feed order)
+  if (status === "public") {
+    await invalidateTrendingCache();
+  }
+
   return video;
 }
 
@@ -208,21 +215,41 @@ async function getFollowingFeed(followingIds = [], limit = 10, skip = 0) {
 }
 
 /**
- * Trending feed sorted by engagementScore descending.
+ * Trending feed sorted by engagementScore descending with Redis caching.
+ * Cache key: trending:feed:{limit}:{skip}
+ * TTL: env.CACHE_TTL (90 seconds default)
+ * 
+ * If Redis is unavailable, falls back to direct MongoDB query.
+ * 
  * @param {number} limit
  * @param {number} skip
  */
 async function getTrendingFeed(limit = 10, skip = 0) {
-  const [videos, total] = await Promise.all([
-    Video.find({ status: "public" })
-      .sort({ trendingScore: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("owner", "username avatarUrl")
-      .lean(),
-    Video.countDocuments({ status: "public" }),
-  ]);
-  return { videos, total };
+  const cacheKey = `trending:feed:${limit}:${skip}`;
+
+  // Use cache-aside pattern: try cache first, then fallback to DB
+  const result = await cacheAside(cacheKey, async () => {
+    const [videos, total] = await Promise.all([
+      Video.find({ status: "public" })
+        .sort({ trendingScore: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("owner", "username avatarUrl")
+        .lean(),
+      Video.countDocuments({ status: "public" }),
+    ]);
+    return { videos, total };
+  }, env.CACHE_TTL);
+
+  return result;
+}
+
+/**
+ * Invalidate all trending feed cache entries
+ * Called when videos are uploaded or engagement metrics change
+ */
+export async function invalidateTrendingCache() {
+  await invalidateCachePattern("trending:feed:*");
 }
 
 /**
