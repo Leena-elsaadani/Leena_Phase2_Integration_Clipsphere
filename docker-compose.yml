@@ -104,9 +104,18 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       CACHE_TTL: 90
     depends_on:
-      - mongo
-      - minio
-      - redis
+      mongo:
+        condition: service_started
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - clipsphere_net
 
