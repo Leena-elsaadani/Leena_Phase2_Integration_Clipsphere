@@ -12,6 +12,12 @@ import { initSocket } from './socket/index.js';
 // Dynamic imports after dotenv.config()
 const app = (await import('./app.js')).default;
 const connectDB = (await import('./config/db.js')).default;
+const env = (await import('./config/env.js')).default;
+const { startTrendingJob } = await import('./jobs/trending.job.js');
+
+if (!env.JWT_SECRET || env.JWT_SECRET.trim().length < 32) {
+  throw new Error("JWT_SECRET must be set and at least 32 characters");
+}
 
 const PORT = process.env.PORT || 5000;
 
@@ -23,6 +29,7 @@ const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
 });
 initSocket(server);
+startTrendingJob();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

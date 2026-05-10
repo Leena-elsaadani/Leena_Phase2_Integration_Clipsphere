@@ -1,7 +1,7 @@
 const env = {
   get PORT() { return process.env.PORT || 5000 },
   get MONGO_URI() { return process.env.MONGO_URI || "mongodb://127.0.0.1:27017/clipsphere" },
-  get JWT_SECRET() { return process.env.JWT_SECRET || "" },
+  get JWT_SECRET() { return process.env.JWT_SECRET },
   get FRONTEND_URL() { return process.env.FRONTEND_URL || "http://localhost:3000" },
   get SMTP_HOST() { return process.env.SMTP_HOST || "sandbox.smtp.mailtrap.io" },
   get SMTP_PORT() { return parseInt(process.env.SMTP_PORT || "587") },

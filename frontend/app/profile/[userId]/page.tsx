@@ -14,21 +14,35 @@ export default function UserProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
+  const [profile, setProfile] = useState<any>(null);
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     setLoading(true);
-    api('/videos?limit=100&skip=0')
-      .then((res) => {
+
+    api(`/users/${userId}`)
+      .then((userRes) => {
         if (cancelled) return;
-        const all = res?.data?.videos ?? [];
-        const userVideos = all.filter((v: any) => {
-          const ownerId = v?.owner?._id || v?.owner || v?.uploader?._id || v?.uploader;
-          return String(ownerId) === String(userId);
-        });
-        setVideos(userVideos);
+        if (userRes?.data?.user) {
+          setProfile(userRes.data.user);
+          setFollowersCount(userRes.data.user.followersCount || 0);
+          setFollowingCount(userRes.data.user.followingCount || 0);
+        }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error fetching profile metadata', err);
+      });
+
+    api(`/videos?owner=${userId}&limit=100&skip=0`)
+      .then((videosRes) => {
+        if (cancelled) return;
+        if (videosRes?.data?.videos) {
+          setVideos(videosRes.data.videos);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching user videos', err);
         if (!cancelled) setVideos([]);
       })
       .finally(() => {
@@ -40,26 +54,7 @@ export default function UserProfilePage() {
     };
   }, [userId]);
 
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    Promise.all([api(`/users/${userId}/followers`), api(`/users/${userId}/following`)])
-      .then(([followers, following]) => {
-        if (cancelled) return;
-        setFollowersCount(Array.isArray(followers) ? followers.length : 0);
-        setFollowingCount(Array.isArray(following) ? following.length : 0);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setFollowersCount(0);
-        setFollowingCount(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  const username = videos[0]?.owner?.username || videos[0]?.uploader?.username || userId;
+  const username = profile?.username || userId;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0d0d0d', color: '#f9fafb', fontFamily: "'DM Sans', sans-serif" }}>

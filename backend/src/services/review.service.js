@@ -29,7 +29,9 @@ export const createReview = async (videoId, userId, reviewData) => {
       const actorUsername = review.user?.username;
 
       if (ownerId && ownerId !== userId.toString()) {
-        getIO().to(ownerId).emit('notification:review', {
+        const io = getIO();
+        if (!io) return;
+        io.to(ownerId).emit('notification:review', {
           type: 'review',
           actorUsername: actorUsername || 'Someone',
           videoId: video._id.toString(),

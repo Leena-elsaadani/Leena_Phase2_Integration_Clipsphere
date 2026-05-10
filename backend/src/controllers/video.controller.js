@@ -50,6 +50,24 @@ export const getAllVideos = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const skip = parseInt(req.query.skip) || 0;
+    const owner = req.query.owner;
+
+    if (owner) {
+      const [videos, total] = await Promise.all([
+        Video.find({ status: "public", owner })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .populate("owner", "username avatarUrl")
+          .lean(),
+        Video.countDocuments({ status: "public", owner }),
+      ]);
+      return res.status(200).json({
+        status: 'success',
+        results: videos.length,
+        data: { videos, total },
+      });
+    }
 
     // Optional personalization: prioritize followed creators if auth cookie/header exists.
     const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];

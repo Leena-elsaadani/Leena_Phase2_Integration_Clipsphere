@@ -17,7 +17,9 @@ export const likeVideo = async (videoId, userId) => {
   if (ownerId && ownerId !== userId.toString()) {
     const liker = await User.findById(userId).select('username');
 
-    getIO().to(ownerId).emit('notification:like', {
+    const io = getIO();
+    if (!io) return;
+    io.to(ownerId).emit('notification:like', {
       type: 'like',
       actorUsername: liker?.username || 'Someone',
       videoId: video._id.toString(),

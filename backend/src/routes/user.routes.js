@@ -2,6 +2,7 @@ import express from "express";
 import { protect } from "../middleware/auth.middleware.js";
 import {
   getMe,
+  getUserById,
   updateMe,
   followUser,
   unfollowUser,
@@ -25,6 +26,18 @@ const router = express.Router();
  *         description: User profile retrieved
  *       401:
  *         description: Unauthorized
+ * 
+ * /api/v1/users/{id}:
+ *   get:
+ *     summary: Get user public profile
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: User profile
  */
 
 /**
@@ -58,6 +71,7 @@ const router = express.Router();
  */
 
 // Public routes - no auth required
+router.get("/:id([0-9a-fA-F]{24})", getUserById);
 router.get("/:id/followers", getFollowers);
 router.get("/:id/following", getFollowing);
 

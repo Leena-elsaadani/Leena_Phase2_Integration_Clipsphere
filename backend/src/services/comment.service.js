@@ -22,7 +22,9 @@ export const addComment = async (videoId, userId, text) => {
     const actorUsername = comment.user?.username;
 
     if (ownerId && ownerId !== userId.toString()) {
-      getIO().to(ownerId).emit('notification:comment', {
+      const io = getIO();
+      if (!io) return;
+      io.to(ownerId).emit('notification:comment', {
         type: 'comment',
         actorUsername: actorUsername || 'Someone',
         videoId: video._id.toString(),

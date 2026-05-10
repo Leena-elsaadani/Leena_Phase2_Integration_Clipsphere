@@ -54,6 +54,9 @@ export function initSocket(httpServer) {
 }
 
 export function getIO() {
-  if (!io) throw new Error('Socket.io not initialized');
+  if (!io) {
+    console.warn('[Socket] Warning: Socket.io not initialized, notifications disabled');
+    return null;
+  }
   return io;
 }

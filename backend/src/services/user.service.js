@@ -10,6 +10,20 @@ const getMe = async (userId) => {
   return user;
 };
 
+const getUserPublicProfile = async (userId) => {
+  const user = await User.findById(userId).select('_id username bio avatarUrl role createdAt');
+  if (!user) throw new ApiError(404, "User not found");
+  
+  const followersCount = await Follower.countDocuments({ following: userId });
+  const followingCount = await Follower.countDocuments({ follower: userId });
+
+  return {
+    ...user.toObject(),
+    followersCount,
+    followingCount,
+  };
+};
+
 const ALLOWED_UPDATE_FIELDS = ["username", "bio", "avatarUrl"];
 
 const updateMe = async (userId, data) => {
@@ -128,6 +142,7 @@ const updateNotificationPreferences = async (userId, preferences) => {
 
 export default {
   getMe,
+  getUserPublicProfile,
   updateMe,
   followUser,
   unfollowUser,
