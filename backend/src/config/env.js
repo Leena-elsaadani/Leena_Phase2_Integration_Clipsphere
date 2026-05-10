@@ -13,7 +13,7 @@ const env = {
   get REDIS_HOST() { return process.env.REDIS_HOST || "localhost" },
   get REDIS_PORT() { return parseInt(process.env.REDIS_PORT || "6379") },
   get REDIS_PASSWORD() { return process.env.REDIS_PASSWORD || "" },
-  get CACHE_TTL() { return parseInt(process.env.CACHE_TTL || "90") }, // seconds
+  get CACHE_TTL() { return parseInt(process.env.CACHE_TTL || "300") }, // seconds
 };
 
 export default env;

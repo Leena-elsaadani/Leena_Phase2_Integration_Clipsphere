@@ -2,7 +2,7 @@ import Like from '../models/like.model.js';
 import Video from '../models/video.model.js';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
-import { sendEngagementEmail } from './email.service.js';
+import { addEmailJob } from '../queues/emailQueue.js';
 import { getIO } from '../socket/index.js';
 import { invalidateTrendingCache } from './Videoservice.js';
 
@@ -43,15 +43,15 @@ export const likeVideo = async (videoId, userId) => {
       try {
         const liker = await User.findById(userId).select('username');
         if (liker) {
-          sendEngagementEmail(
-            owner.email,
-            owner.username,
-            liker.username,
-            'liked',
-            video.title,
-            'newLike'
-          ).catch((emailErr) => {
-            console.error('Failed to send like email:', emailErr.message);
+          addEmailJob({
+            to: owner.email,
+            recipientUsername: owner.username,
+            actorUsername: liker.username,
+            action: 'liked',
+            videoTitle: video.title,
+            notificationPreferenceKey: 'newLike',
+          }).catch((emailErr) => {
+            console.error('[Email Queue] Failed to enqueue like email job:', emailErr.message);
           });
         }
       } catch (emailErr) {

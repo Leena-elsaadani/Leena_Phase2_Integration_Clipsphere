@@ -1,7 +1,7 @@
 import Comment from '../models/comment.model.js';
 import Video from '../models/video.model.js';
 import ApiError from '../utils/ApiError.js';
-import { sendEngagementEmail } from './email.service.js';
+import { addEmailJob } from '../queues/emailQueue.js';
 import { getIO } from '../socket/index.js';
 import { invalidateTrendingCache } from './Videoservice.js';
 
@@ -47,15 +47,15 @@ export const addComment = async (videoId, userId, text) => {
       const commenterUsername = comment.user?.username;
 
       if (commenterUsername && video.owner.email) {
-        sendEngagementEmail(
-          video.owner.email,
-          video.owner.username,
-          commenterUsername,
-          'commented on',
-          video.title,
-          'newComment'
-        ).catch((emailErr) => {
-          console.error('Failed to send comment email:', emailErr.message);
+        addEmailJob({
+          to: video.owner.email,
+          recipientUsername: video.owner.username,
+          actorUsername: commenterUsername,
+          action: 'commented on',
+          videoTitle: video.title,
+          notificationPreferenceKey: 'newComment',
+        }).catch((emailErr) => {
+          console.error('[Email Queue] Failed to enqueue comment email job:', emailErr.message);
         });
       }
     } catch (emailErr) {

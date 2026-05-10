@@ -2,7 +2,7 @@ import Review from '../models/review.model.js';
 import Video from '../models/video.model.js';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ApiError.js';
-import { sendEngagementEmail } from './email.service.js';
+import { addEmailJob } from '../queues/emailQueue.js';
 import { getIO } from '../socket/index.js';
 import { invalidateTrendingCache } from './Videoservice.js';
 
@@ -55,15 +55,15 @@ export const createReview = async (videoId, userId, reviewData) => {
         const reviewer = await User.findById(userId).select('username');
 
         if (owner && reviewer) {
-          sendEngagementEmail(
-            owner.email,
-            owner.username,
-            reviewer.username,
-            'reviewed',
-            video.title,
-            'newReview'
-          ).catch((emailErr) => {
-            console.error('Failed to send review email:', emailErr.message);
+          addEmailJob({
+            to: owner.email,
+            recipientUsername: owner.username,
+            actorUsername: reviewer.username,
+            action: 'reviewed',
+            videoTitle: video.title,
+            notificationPreferenceKey: 'newReview',
+          }).catch((emailErr) => {
+            console.error('[Email Queue] Failed to enqueue review email job:', emailErr.message);
           });
         }
       } catch (emailErr) {

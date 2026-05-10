@@ -15,6 +15,7 @@ const app = (await import('./app.js')).default;
 const connectDB = (await import('./config/db.js')).default;
 const env = (await import('./config/env.js')).default;
 const { startTrendingJob } = await import('./jobs/trending.job.js');
+const { startEmailWorker } = await import('./workers/emailWorker.js');
 
 if (!env.JWT_SECRET || env.JWT_SECRET.trim().length < 32) {
   throw new Error("JWT_SECRET must be set and at least 32 characters");
@@ -32,6 +33,12 @@ const server = app.listen(PORT, () => {
 });
 initSocket(server);
 startTrendingJob();
+
+try {
+  startEmailWorker();
+} catch (err) {
+  console.error('[Email Worker] Startup error:', err.message);
+}
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

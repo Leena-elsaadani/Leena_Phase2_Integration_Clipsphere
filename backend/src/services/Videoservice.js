@@ -216,8 +216,8 @@ async function getFollowingFeed(followingIds = [], limit = 10, skip = 0) {
 
 /**
  * Trending feed sorted by engagementScore descending with Redis caching.
- * Cache key: trending:feed:{limit}:{skip}
- * TTL: env.CACHE_TTL (90 seconds default)
+ * Cache key: trending:{limit}:{skip}
+ * TTL: env.CACHE_TTL (300 seconds default)
  * 
  * If Redis is unavailable, falls back to direct MongoDB query.
  * 
@@ -225,7 +225,7 @@ async function getFollowingFeed(followingIds = [], limit = 10, skip = 0) {
  * @param {number} skip
  */
 async function getTrendingFeed(limit = 10, skip = 0) {
-  const cacheKey = `trending:feed:${limit}:${skip}`;
+  const cacheKey = `trending:${limit}:${skip}`;
 
   // Use cache-aside pattern: try cache first, then fallback to DB
   const result = await cacheAside(cacheKey, async () => {
@@ -249,7 +249,7 @@ async function getTrendingFeed(limit = 10, skip = 0) {
  * Called when videos are uploaded or engagement metrics change
  */
 export async function invalidateTrendingCache() {
-  await invalidateCachePattern("trending:feed:*");
+  await invalidateCachePattern("trending:*");
 }
 
 /**

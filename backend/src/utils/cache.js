@@ -88,7 +88,7 @@ export async function invalidateCache(keys) {
 
 /**
  * Pattern-based cache invalidation (e.g., clear all trending pages)
- * @param {string} pattern - Redis key pattern (e.g., "trending:feed:*")
+ * @param {string} pattern - Redis key pattern (e.g., "trending:*")
  * @returns {Promise<number>} Number of keys deleted
  */
 export async function invalidateCachePattern(pattern) {

@@ -85,8 +85,7 @@ export const sendWelcomeEmail = async (toEmail, username) => {
     });
     console.log(`Welcome email sent to ${toEmail}`);
   } catch (error) {
-    console.error('Failed to send welcome email:', error.message);
-  }
+    console.error('Failed to send welcome email:', error.message);    throw error;  }
 };
 
 export const sendEngagementEmail = async (
