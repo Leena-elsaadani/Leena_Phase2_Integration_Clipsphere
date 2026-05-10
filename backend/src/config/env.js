@@ -10,6 +10,10 @@ const env = {
   get STRIPE_SECRET_KEY() { return process.env.STRIPE_SECRET_KEY || "" },
   get STRIPE_WEBHOOK_SECRET() { return process.env.STRIPE_WEBHOOK_SECRET || "" },
   get STRIPE_PUBLISHABLE_KEY() { return process.env.STRIPE_PUBLISHABLE_KEY || "" },
+  get REDIS_HOST() { return process.env.REDIS_HOST || "localhost" },
+  get REDIS_PORT() { return parseInt(process.env.REDIS_PORT || "6379") },
+  get REDIS_PASSWORD() { return process.env.REDIS_PASSWORD || "" },
+  get CACHE_TTL() { return parseInt(process.env.CACHE_TTL || "90") }, // seconds
 };
 
 export default env;
