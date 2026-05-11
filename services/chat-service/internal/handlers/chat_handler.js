@@ -13,38 +13,44 @@ function registerChatHandlers(app, deps) {
   });
 
   app.post("/rooms", async (req, res) => {
-    const { name, ownerId } = req.body || {};
+    const userId = req.headers['x-user-id'];
+    const { name } = req.body || {};
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
     if (!name) return res.status(400).json({ error: "name is required" });
-    const room = await chatService.createRoom(name, ownerId || null);
+    const room = await chatService.createRoom(name, userId);
     return res.status(201).json(room);
   });
 
-  app.post("/rooms/:roomId/join", async (req, res) => {
-    try {
-      const { userId } = req.body || {};
-      if (!userId) return res.status(400).json({ error: "userId is required" });
-      await chatService.joinRoom(req.params.roomId, userId);
-      return res.status(200).json({ message: "joined" });
-    } catch (err) {
-      return res.status(404).json({ error: err.message });
-    }
-  });
+app.post("/rooms/:roomId/join", async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-  app.post("/rooms/:roomId/leave", async (req, res) => {
-    try {
-      const { userId } = req.body || {};
-      if (!userId) return res.status(400).json({ error: "userId is required" });
-      await chatService.leaveRoom(req.params.roomId, userId);
-      return res.status(200).json({ message: "left" });
-    } catch (err) {
-      return res.status(404).json({ error: err.message });
-    }
-  });
+    await chatService.joinRoom(req.params.roomId, userId);
+    return res.status(200).json({ message: "joined" });
+  } catch (err) {
+    return res.status(404).json({ error: err.message });
+  }
+});
+
+app.post("/rooms/:roomId/leave", async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    await chatService.leaveRoom(req.params.roomId, userId);
+    return res.status(200).json({ message: "left" });
+  } catch (err) {
+    return res.status(404).json({ error: err.message });
+  }
+});
 
   app.post("/rooms/:roomId/messages", async (req, res) => {
     try {
-      const { userId, content } = req.body || {};
-      if (!userId || !content) return res.status(400).json({ error: "userId and content are required" });
+      const userId = req.headers['x-user-id'];
+      const { content } = req.body || {};
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      if (!content) return res.status(400).json({ error: "content is required" });
       const msg = await chatService.addMessage(req.params.roomId, userId, content);
       metricsService.incMessages();
       const event = {
@@ -73,8 +79,10 @@ function registerChatHandlers(app, deps) {
 
   app.put("/rooms/:roomId/messages/:messageId", async (req, res) => {
     try {
-      const { userId, content } = req.body || {};
-      if (!userId || !content) return res.status(400).json({ error: "userId and content are required" });
+      const userId = req.headers['x-user-id'];
+      const { content } = req.body || {};
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      if (!content) return res.status(400).json({ error: "content is required" });
       const msg = await chatService.editMessage(req.params.roomId, req.params.messageId, userId, content);
       wsBroadcast(req.params.roomId, { event: "message.updated", data: msg });
       return res.status(200).json(msg);
@@ -86,8 +94,8 @@ function registerChatHandlers(app, deps) {
 
   app.delete("/rooms/:roomId/messages/:messageId", async (req, res) => {
     try {
-      const { userId } = req.body || {};
-      if (!userId) return res.status(400).json({ error: "userId is required" });
+      const userId = req.headers['x-user-id'];
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
       await chatService.deleteMessage(req.params.roomId, req.params.messageId, userId);
       wsBroadcast(req.params.roomId, { event: "message.deleted", data: { id: req.params.messageId } });
       return res.status(204).send();
