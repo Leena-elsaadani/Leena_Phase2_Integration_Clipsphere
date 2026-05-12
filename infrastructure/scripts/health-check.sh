@@ -12,7 +12,7 @@ SERVICES="
   auth-service|http://localhost:3001/health
   user-service|http://localhost:3003/health
   chat-service|http://localhost:3002/health
-  dashboard-service|http://localhost:3004/health
+  dashboard-service|http://localhost:8100/health
 "
 
 ALL_OK=true

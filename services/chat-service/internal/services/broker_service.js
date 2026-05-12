@@ -2,11 +2,28 @@ const amqp = require("amqplib");
 
 let channel;
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function connectBroker() {
   const amqpUrl = process.env.RABBITMQ_URL || "amqp://localhost:5672";
-  const conn = await amqp.connect(amqpUrl);
-  channel = await conn.createConfirmChannel();
-  await channel.assertExchange("chat.events", "topic", { durable: true });
+  const maxAttempts = 45;
+  const delayMs = 2000;
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const conn = await amqp.connect(amqpUrl);
+      channel = await conn.createConfirmChannel();
+      await channel.assertExchange("chat.events", "topic", { durable: true });
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts) break;
+      await sleep(delayMs);
+    }
+  }
+  throw lastErr;
 }
 
 async function publishMessageCreated(payload) {

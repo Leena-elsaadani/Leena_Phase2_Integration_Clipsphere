@@ -1,5 +1,6 @@
 FROM openresty/openresty:1.27.1.2-0-alpine
 
+RUN apk add --no-cache perl curl
 RUN /usr/local/openresty/bin/opm get SkyLothar/lua-resty-jwt
 RUN /usr/local/openresty/bin/opm get openresty/lua-resty-redis
 RUN /usr/local/openresty/bin/opm get openresty/lua-resty-string

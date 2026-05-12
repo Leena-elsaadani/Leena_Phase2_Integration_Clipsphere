@@ -7,16 +7,23 @@ import (
 	"user-service/internal/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewRouter(cfg config.Config, userSvc *services.UserService) *gin.Engine {
 	r := gin.Default()
+
+	// Add metrics middleware globally (before any other routes)
+	r.Use(middleware.PrometheusMiddleware())
 
 	jwtMW, err := middleware.NewJWTMiddleware(cfg.JWTPublicKey)
 	if err != nil {
 		panic(err)
 	}
 	h := handlers.NewUserHandler(userSvc)
+
+	// Metrics endpoint (no auth required)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	users := r.Group("/users")
 	{

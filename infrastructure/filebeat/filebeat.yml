@@ -1,0 +1,46 @@
+##########################################
+# filebeat.yml
+# Ships all Docker container logs to OpenSearch.
+# Runs as a container with access to /var/lib/docker/containers.
+##########################################
+
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    # Add container metadata (service name, image, etc.) to every log event
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+# ── Processors applied to all events ────────────────────────────────────────
+processors:
+  # Decode JSON log lines so fields are searchable in OpenSearch
+  - decode_json_fields:
+      fields: ["message"]
+      target: ""
+      overwrite_keys: true
+      add_error_key: true
+
+  # Keep only the fields we care about (reduces storage)
+  - drop_fields:
+      fields: ["agent", "ecs", "host.architecture", "host.os"]
+      ignore_missing: true
+
+# ── Output: OpenSearch ───────────────────────────────────────────────────────
+output.elasticsearch:
+  # OpenSearch is API-compatible with Elasticsearch
+  hosts: ["opensearch:9200"]
+  index: "app-logs-%{+yyyy.MM.dd}"
+  # Security is disabled in dev (DISABLE_SECURITY_PLUGIN=true in opensearch container)
+  protocol: "http"
+
+# ── Index template ───────────────────────────────────────────────────────────
+setup.template.name: "app-logs"
+setup.template.pattern: "app-logs-*"
+setup.template.overwrite: false
+setup.ilm.enabled: false
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging.level: warning
+logging.to_files: false
