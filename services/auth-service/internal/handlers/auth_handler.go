@@ -15,6 +15,8 @@ type AuthHandler struct {
 type AuthContract interface {
 	GoogleLoginURL() string
 	HandleGoogleCallback(ctx context.Context, code string) (string, map[string]any, error)
+	GitHubLoginURL() string
+	HandleGitHubCallback(ctx context.Context, code string) (string, map[string]any, error)
 	Logout(token string) error
 	ValidateToken(token string) (map[string]any, string, error)
 	PublicKey() string
@@ -31,15 +33,33 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		c.Redirect(http.StatusFound, "/auth/failure")
+		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
 		return
 	}
-	token, user, err := h.auth.HandleGoogleCallback(c.Request.Context(), code)
+	token, _, err := h.auth.HandleGoogleCallback(c.Request.Context(), code)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to issue token"})
+		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
+	c.Redirect(http.StatusFound, "http://localhost:5178/login?token="+token)
+}
+
+func (h *AuthHandler) GitHubLogin(c *gin.Context) {
+	c.Redirect(http.StatusFound, h.auth.GitHubLoginURL())
+}
+
+func (h *AuthHandler) GitHubCallback(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
+		return
+	}
+	token, _, err := h.auth.HandleGitHubCallback(c.Request.Context(), code)
+	if err != nil {
+		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
+		return
+	}
+	c.Redirect(http.StatusFound, "http://localhost:5178/login?token="+token)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

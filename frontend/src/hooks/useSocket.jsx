@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from './useAuth.jsx';
 
 export const useSocket = (roomId, onMessage) => {
   const { user } = useAuth();

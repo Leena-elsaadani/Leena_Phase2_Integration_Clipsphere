@@ -19,13 +19,14 @@ import (
 )
 
 type AuthService struct {
-	cfg        config.Config
-	userRepo   *repository.UserRepository
-	redis      *RedisService
-	privateKey []byte
-	publicKey  []byte
-	oauthCfg   *oauth2.Config
-	httpClient *http.Client
+	cfg             config.Config
+	userRepo        *repository.UserRepository
+	redis           *RedisService
+	privateKey      []byte
+	publicKey       []byte
+	googleOAuthCfg  *oauth2.Config
+	githubOAuthCfg  *oauth2.Config
+	httpClient      *http.Client
 }
 
 type JWTUser struct {
@@ -51,23 +52,33 @@ func NewAuthService(cfg config.Config, db *gorm.DB, redisSvc *RedisService) (*Au
 		redis:      redisSvc,
 		privateKey: privateKey,
 		publicKey:  publicKey,
-		oauthCfg: &oauth2.Config{
+		googleOAuthCfg: &oauth2.Config{
 			ClientID:     cfg.GoogleClientID,
 			ClientSecret: cfg.GoogleSecret,
 			RedirectURL:  cfg.GoogleCallback,
 			Endpoint:     google.Endpoint,
 			Scopes:       []string{"profile", "email"},
 		},
+		githubOAuthCfg: &oauth2.Config{
+			ClientID:     cfg.GitHubClientID,
+			ClientSecret: cfg.GitHubSecret,
+			RedirectURL:  cfg.GitHubCallback,
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://github.com/login/oauth/authorize",
+				TokenURL: "https://github.com/login/oauth/access_token",
+			},
+			Scopes: []string{"user:email"},
+		},
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 	}, nil
 }
 
 func (s *AuthService) GoogleLoginURL() string {
-	return s.oauthCfg.AuthCodeURL("state")
+	return s.googleOAuthCfg.AuthCodeURL("state")
 }
 
 func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (string, map[string]any, error) {
-	token, err := s.oauthCfg.Exchange(ctx, code)
+	token, err := s.googleOAuthCfg.Exchange(ctx, code)
 	if err != nil {
 		return "", nil, err
 	}
@@ -128,6 +139,128 @@ func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (st
 		"name":  user.Name,
 		"role":  user.Role,
 	}, nil
+}
+
+func (s *AuthService) GitHubLoginURL() string {
+	return s.githubOAuthCfg.AuthCodeURL("state")
+}
+
+func (s *AuthService) HandleGitHubCallback(ctx context.Context, code string) (string, map[string]any, error) {
+	token, err := s.githubOAuthCfg.Exchange(ctx, code)
+	if err != nil {
+		return "", nil, err
+	}
+
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", nil, fmt.Errorf("github userinfo failed: %s", strings.TrimSpace(string(body)))
+	}
+
+	var githubUser struct {
+		ID        int64  `json:"id"`
+		Email     string `json:"email"`
+		Name      string `json:"name"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url"`
+	}
+	if err := json.Unmarshal(body, &githubUser); err != nil {
+		return "", nil, err
+	}
+
+	email := githubUser.Email
+	if email == "" {
+		email, err = s.fetchPrimaryGitHubEmail(ctx, token.AccessToken)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	if email == "" {
+		return "", nil, fmt.Errorf("github email not available")
+	}
+
+	user, err := s.userRepo.UpsertFromGitHub(fmt.Sprint(githubUser.ID), email, githubUser.Name, githubUser.AvatarURL)
+	if err != nil {
+		return "", nil, err
+	}
+
+	t := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"sub":   user.ID,
+		"email": user.Email,
+		"role":  user.Role,
+		"name":  user.Name,
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+	})
+
+	private, err := jwt.ParseRSAPrivateKeyFromPEM(s.privateKey)
+	if err != nil {
+		return "", nil, err
+	}
+	signedToken, err := t.SignedString(private)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if err := s.redis.SaveSession(signedToken, user.ID); err != nil {
+		return "", nil, err
+	}
+
+	return signedToken, map[string]any{
+		"id":    user.ID,
+		"email": user.Email,
+		"name":  user.Name,
+		"role":  user.Role,
+	}, nil
+}
+
+func (s *AuthService) fetchPrimaryGitHubEmail(ctx context.Context, accessToken string) (string, error) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("github emails failed: %s", strings.TrimSpace(string(body)))
+	}
+
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+	if err := json.Unmarshal(body, &emails); err != nil {
+		return "", err
+	}
+
+	for _, email := range emails {
+		if email.Primary && email.Verified {
+			return email.Email, nil
+		}
+	}
+	for _, email := range emails {
+		if email.Verified {
+			return email.Email, nil
+		}
+	}
+	if len(emails) > 0 {
+		return emails[0].Email, nil
+	}
+
+	return "", nil
 }
 
 func (s *AuthService) Logout(token string) error {

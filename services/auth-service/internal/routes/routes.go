@@ -22,6 +22,8 @@ func NewRouter(authSvc *services.AuthService) *gin.Engine {
 
 	r.GET("/auth/google/login", h.GoogleLogin)
 	r.GET("/auth/google/callback", h.GoogleCallback)
+	r.GET("/auth/github/login", h.GitHubLogin)
+	r.GET("/auth/github/callback", h.GitHubCallback)
 	r.POST("/auth/logout", h.Logout)
 	r.POST("/auth/validate", h.Validate)
 	r.GET("/auth/public-key", h.PublicKey)

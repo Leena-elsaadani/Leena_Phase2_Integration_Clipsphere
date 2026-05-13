@@ -28,6 +28,11 @@ func (f *fakeAuthService) HandleGoogleCallback(_ context.Context, code string) (
 	f.lastCode = code
 	return f.callbackToken, f.callbackUser, f.callbackErr
 }
+func (f *fakeAuthService) GitHubLoginURL() string { return "https://github.com/mock" }
+func (f *fakeAuthService) HandleGitHubCallback(_ context.Context, code string) (string, map[string]any, error) {
+	f.lastCode = code
+	return f.callbackToken, f.callbackUser, f.callbackErr
+}
 func (f *fakeAuthService) Logout(token string) error {
 	f.lastLogout = token
 	return nil
@@ -43,6 +48,7 @@ func setupAuthRouter(fake *fakeAuthService) *gin.Engine {
 	h := NewAuthHandler(fake)
 	r.GET("/health", h.Health)
 	r.GET("/auth/google/callback", h.GoogleCallback)
+	r.GET("/auth/github/callback", h.GitHubCallback)
 	r.POST("/auth/validate", h.Validate)
 	r.POST("/auth/logout", h.Logout)
 	r.GET("/auth/public-key", h.PublicKey)
@@ -69,9 +75,23 @@ func TestGoogleCallbackReturnsTokenAndUser(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), `"token":"a.b.c"`)
-	assert.Contains(t, rec.Body.String(), `"email":"test@example.com"`)
+	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Equal(t, "http://localhost:3000/login?token=a.b.c", rec.Header().Get("Location"))
+	assert.Equal(t, "fake-code", fake.lastCode)
+}
+
+func TestGitHubCallbackReturnsTokenAndUser(t *testing.T) {
+	fake := &fakeAuthService{
+		callbackToken: "x.y.z",
+		callbackUser:  map[string]any{"id": "user-uuid-2", "email": "git@example.com", "name": "GitHub User", "role": "user"},
+	}
+	r := setupAuthRouter(fake)
+	req := httptest.NewRequest(http.MethodGet, "/auth/github/callback?code=fake-code", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Equal(t, "http://localhost:3000/login?token=x.y.z", rec.Header().Get("Location"))
 	assert.Equal(t, "fake-code", fake.lastCode)
 }
 
