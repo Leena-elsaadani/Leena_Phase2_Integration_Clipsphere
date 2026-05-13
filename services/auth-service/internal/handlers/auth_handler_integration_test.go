@@ -24,7 +24,7 @@ type fakeAuthService struct {
 }
 
 func (f *fakeAuthService) GoogleLoginURL() string { return "https://accounts.google.com/mock" }
-func (f *fakeAuthService) HandleGoogleCallback(_ context.Context, code string) (string, map[string]any, error) {
+func (f *fakeAuthService) HandleGoogleCallback(_ context.Context, code string, _ string) (string, map[string]any, error) {
 	f.lastCode = code
 	return f.callbackToken, f.callbackUser, f.callbackErr
 }
@@ -42,10 +42,13 @@ func (f *fakeAuthService) ValidateToken(_ string) (map[string]any, string, error
 }
 func (f *fakeAuthService) PublicKey() string { return f.publicKey }
 
+// testFrontendURL matches integration test expectations for post-auth redirects.
+const testFrontendURL = "http://localhost:3000"
+
 func setupAuthRouter(fake *fakeAuthService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := NewAuthHandler(fake)
+	h := NewAuthHandler(fake, testFrontendURL)
 	r.GET("/health", h.Health)
 	r.GET("/auth/google/callback", h.GoogleCallback)
 	r.GET("/auth/github/callback", h.GitHubCallback)

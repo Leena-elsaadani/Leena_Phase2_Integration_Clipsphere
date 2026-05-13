@@ -9,13 +9,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func NewRouter(authSvc *services.AuthService) *gin.Engine {
+func NewRouter(authSvc *services.AuthService, frontendURL string) *gin.Engine {
 	r := gin.Default()
 
 	// Add metrics middleware globally (before any other routes)
 	r.Use(middleware.PrometheusMiddleware())
 
-	h := handlers.NewAuthHandler(authSvc)
+	h := handlers.NewAuthHandler(authSvc, frontendURL)
 
 	// Metrics endpoint (no auth required)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))

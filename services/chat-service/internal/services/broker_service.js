@@ -1,4 +1,5 @@
 const amqp = require("amqplib");
+const metrics = require("./metrics_service");
 
 let channel;
 const circuit = {
@@ -105,7 +106,16 @@ async function publishEvent(routingKey, payload) {
 }
 
 async function publishMessageCreated(payload) {
-  return publishEvent("message.created", payload);
+  const t0 = Date.now();
+  try {
+    const ok = await publishEvent("message.created", payload);
+    if (!ok) {
+      metrics.rabbitmqPublishErrorsTotal.inc();
+    }
+    return ok;
+  } finally {
+    metrics.rabbitmqPublishDurationSeconds.observe((Date.now() - t0) / 1000);
+  }
 }
 
 async function publishUserPresence(payload, connected) {

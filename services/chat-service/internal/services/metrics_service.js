@@ -15,6 +15,27 @@ const messagesTotal = new client.Counter({
   registers: [register],
 });
 
+const mongodbOperationDurationSeconds = new client.Histogram({
+  name: "mongodb_operation_duration_seconds",
+  help: "MongoDB operation duration in seconds",
+  labelNames: ["operation"],
+  buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  registers: [register],
+});
+
+const rabbitmqPublishDurationSeconds = new client.Histogram({
+  name: "rabbitmq_publish_duration_seconds",
+  help: "RabbitMQ publish duration in seconds",
+  buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  registers: [register],
+});
+
+const rabbitmqPublishErrorsTotal = new client.Counter({
+  name: "rabbitmq_publish_errors_total",
+  help: "RabbitMQ publish failures or blocked sends",
+  registers: [register],
+});
+
 let activeUsersValue = 0;
 let messageVolumeTimeline = [];
 
@@ -41,4 +62,12 @@ function getMetricsSummary() {
   return { activeUsers: activeUsersValue, messageVolume: messageVolumeTimeline };
 }
 
-module.exports = { register, setActiveUsers, incMessages, getMetricsSummary };
+module.exports = {
+  register,
+  setActiveUsers,
+  incMessages,
+  getMetricsSummary,
+  mongodbOperationDurationSeconds,
+  rabbitmqPublishDurationSeconds,
+  rabbitmqPublishErrorsTotal,
+};

@@ -16,11 +16,11 @@ def register_handlers(app: FastAPI) -> None:
 
     @app.get("/dashboard/active-users")
     async def active_users() -> dict[str, int]:
-        return {"activeUsers": store.active_user_count()}
+        return {"activeUsers": await store.active_user_count()}
 
     @app.get("/dashboard/message-volume")
     async def message_volume() -> dict[str, list[dict[str, int | str]]]:
-        return {"points": store.message_points()}
+        return {"points": await store.message_points()}
 
     @app.get("/dashboard/system-health")
     async def system_health() -> dict[str, dict[str, str]]:

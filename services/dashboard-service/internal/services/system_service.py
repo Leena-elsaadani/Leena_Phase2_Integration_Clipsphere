@@ -5,6 +5,13 @@ import time
 from typing import Any
 
 import httpx
+from prometheus_client import Counter
+
+circuit_breaker_state_changes_total = Counter(
+    "circuit_breaker_state_changes_total",
+    "Circuit breaker transitions to open or closed",
+    ["state"],
+)
 
 
 class CircuitBreaker:
@@ -20,12 +27,17 @@ class CircuitBreaker:
         return (time.time() - self.opened_at) >= self.cooldown_seconds
 
     def on_success(self) -> None:
+        was_open = self.opened_at is not None
         self.failures = 0
         self.opened_at = None
+        if was_open:
+            circuit_breaker_state_changes_total.labels("closed").inc()
 
     def on_failure(self) -> None:
         self.failures += 1
         if self.failures >= self.threshold:
+            if self.opened_at is None:
+                circuit_breaker_state_changes_total.labels("open").inc()
             self.opened_at = time.time()
 
 

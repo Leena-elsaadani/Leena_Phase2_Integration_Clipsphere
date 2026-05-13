@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const metrics = require("../services/metrics_service");
 
 const socketsByRoom = new Map();
 const activeMembers = new Map();
@@ -60,37 +61,57 @@ async function leaveRoom(roomId, userId) {
 }
 
 async function addMessage(roomId, userId, content) {
-  await ensureRoom(roomId);
-  const msg = await Message.create({ roomId, userId, content });
-  return toMessageDto(msg);
+  const t0 = Date.now();
+  try {
+    await ensureRoom(roomId);
+    const msg = await Message.create({ roomId, userId, content });
+    return toMessageDto(msg);
+  } finally {
+    metrics.mongodbOperationDurationSeconds.observe({ operation: "insert" }, (Date.now() - t0) / 1000);
+  }
 }
 
 async function getMessages(roomId, cursor, limit) {
-  await ensureRoom(roomId);
-  const query = { roomId };
-  if (cursor) {
-    query._id = { $lt: cursor };
+  const t0 = Date.now();
+  try {
+    await ensureRoom(roomId);
+    const query = { roomId };
+    if (cursor) {
+      query._id = { $lt: cursor };
+    }
+    const rows = await Message.find(query).sort({ _id: -1 }).limit(limit).lean();
+    const messages = rows.map(toMessageDto).reverse();
+    const nextCursor = rows.length === limit ? String(rows[rows.length - 1]._id) : null;
+    return { messages, nextCursor };
+  } finally {
+    metrics.mongodbOperationDurationSeconds.observe({ operation: "find" }, (Date.now() - t0) / 1000);
   }
-  const rows = await Message.find(query).sort({ _id: -1 }).limit(limit).lean();
-  const messages = rows.map(toMessageDto).reverse();
-  const nextCursor = rows.length === limit ? String(rows[rows.length - 1]._id) : null;
-  return { messages, nextCursor };
 }
 
 async function editMessage(roomId, messageId, userId, content) {
-  const msg = await Message.findOne({ _id: messageId, roomId });
-  if (!msg) throw new Error("Message not found");
-  if (msg.userId !== userId) throw new Error("Forbidden");
-  msg.content = content;
-  await msg.save();
-  return toMessageDto(msg);
+  const t0 = Date.now();
+  try {
+    const msg = await Message.findOne({ _id: messageId, roomId });
+    if (!msg) throw new Error("Message not found");
+    if (msg.userId !== userId) throw new Error("Forbidden");
+    msg.content = content;
+    await msg.save();
+    return toMessageDto(msg);
+  } finally {
+    metrics.mongodbOperationDurationSeconds.observe({ operation: "update" }, (Date.now() - t0) / 1000);
+  }
 }
 
 async function deleteMessage(roomId, messageId, userId) {
-  const msg = await Message.findOne({ _id: messageId, roomId });
-  if (!msg) throw new Error("Message not found");
-  if (msg.userId !== userId) throw new Error("Forbidden");
-  await Message.deleteOne({ _id: messageId });
+  const t0 = Date.now();
+  try {
+    const msg = await Message.findOne({ _id: messageId, roomId });
+    if (!msg) throw new Error("Message not found");
+    if (msg.userId !== userId) throw new Error("Forbidden");
+    await Message.deleteOne({ _id: messageId });
+  } finally {
+    metrics.mongodbOperationDurationSeconds.observe({ operation: "delete" }, (Date.now() - t0) / 1000);
+  }
 }
 
 async function listRooms() {

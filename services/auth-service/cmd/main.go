@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("auth service init failed: %v", err)
 	}
 
-	r := routes.NewRouter(authSvc)
+	r := routes.NewRouter(authSvc, cfg.FrontendURL)
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}

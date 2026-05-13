@@ -1,35 +1,53 @@
-import fakeredis
+import asyncio
+
+from fakeredis import FakeAsyncRedis
 
 from internal.services.redis_metrics_store import RedisMetricsStore
 
 
-def make_store(monkeypatch):
-    fake_client = fakeredis.FakeRedis(decode_responses=True)
-    monkeypatch.setattr("redis.Redis", lambda *args, **kwargs: fake_client)
-    return RedisMetricsStore(), fake_client
+def _patch_async_redis(monkeypatch, fake: FakeAsyncRedis) -> None:
+    monkeypatch.setattr(
+        "internal.services.redis_metrics_store.redis.Redis",
+        lambda **kwargs: fake,
+    )
 
 
 def test_message_created_updates_metrics(monkeypatch):
-    store, client = make_store(monkeypatch)
-    payload = {"messageId": "m1", "userId": "u1", "timestamp": "1710000000"}
-    store.on_message_created(payload)
+    async def _run() -> None:
+        fake = FakeAsyncRedis(decode_responses=True)
+        _patch_async_redis(monkeypatch, fake)
+        store = RedisMetricsStore()
+        payload = {"messageId": "m1", "userId": "u1", "timestamp": "1710000000"}
+        await store.on_message_created(payload)
 
-    assert client.scard(store.active_users_key) == 1
-    assert int(client.get(store.message_count_key)) == 1
-    points = store.message_points()
-    assert len(points) == 1
-    assert points[0]["count"] == 1
+        assert await fake.scard(store.active_users_key) == 1
+        assert int(await fake.get(store.message_count_key)) == 1
+        points = await store.message_points()
+        assert len(points) == 1
+        assert points[0]["count"] == 1
+
+    asyncio.run(_run())
 
 
 def test_user_connected_event_processed(monkeypatch):
-    store, client = make_store(monkeypatch)
-    store.on_user_connected({"userId": "u2", "timestamp": "1710000001"})
-    assert client.sismember(store.active_users_key, "u2") == 1
+    async def _run() -> None:
+        fake = FakeAsyncRedis(decode_responses=True)
+        _patch_async_redis(monkeypatch, fake)
+        store = RedisMetricsStore()
+        await store.on_user_connected({"userId": "u2", "timestamp": "1710000001"})
+        assert await fake.sismember(store.active_users_key, "u2") == 1
+
+    asyncio.run(_run())
 
 
 def test_event_idempotency(monkeypatch):
-    store, client = make_store(monkeypatch)
-    payload = {"messageId": "same", "userId": "u1", "timestamp": "1710000100"}
-    store.on_message_created(payload)
-    store.on_message_created(payload)
-    assert int(client.get(store.message_count_key)) == 1
+    async def _run() -> None:
+        fake = FakeAsyncRedis(decode_responses=True)
+        _patch_async_redis(monkeypatch, fake)
+        store = RedisMetricsStore()
+        payload = {"messageId": "same", "userId": "u1", "timestamp": "1710000100"}
+        await store.on_message_created(payload)
+        await store.on_message_created(payload)
+        assert int(await fake.get(store.message_count_key)) == 1
+
+    asyncio.run(_run())

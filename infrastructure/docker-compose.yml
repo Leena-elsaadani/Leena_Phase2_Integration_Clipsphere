@@ -326,9 +326,12 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
+      - "80:80"
+      - "443:443"
       - "8080:8080"
     volumes:
       - ../keys:/etc/gateway/keys:ro
+      - ../api-gateway/certs:/etc/nginx/certs:ro
     environment:
       - JWT_EXPECTED_ISSUER=
       - REDIS_HOST=redis

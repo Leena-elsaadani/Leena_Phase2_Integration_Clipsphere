@@ -9,12 +9,13 @@ import (
 )
 
 type AuthHandler struct {
-	auth AuthContract
+	auth          AuthContract
+	frontendBase  string // post-OAuth browser redirect base (from config; no hardcoded host)
 }
 
 type AuthContract interface {
 	GoogleLoginURL() string
-	HandleGoogleCallback(ctx context.Context, code string) (string, map[string]any, error)
+	HandleGoogleCallback(ctx context.Context, code string, state string) (string, map[string]any, error)
 	GitHubLoginURL() string
 	HandleGitHubCallback(ctx context.Context, code string) (string, map[string]any, error)
 	Logout(token string) error
@@ -22,8 +23,8 @@ type AuthContract interface {
 	PublicKey() string
 }
 
-func NewAuthHandler(auth AuthContract) *AuthHandler {
-	return &AuthHandler{auth: auth}
+func NewAuthHandler(auth AuthContract, frontendBaseURL string) *AuthHandler {
+	return &AuthHandler{auth: auth, frontendBase: frontendBaseURL}
 }
 
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
@@ -33,15 +34,16 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
+		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
 		return
 	}
-	token, _, err := h.auth.HandleGoogleCallback(c.Request.Context(), code)
+	state := c.Query("state")
+	token, _, err := h.auth.HandleGoogleCallback(c.Request.Context(), code, state)
 	if err != nil {
-		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
+		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
 		return
 	}
-	c.Redirect(http.StatusFound, "http://localhost:5178/login?token="+token)
+	c.Redirect(http.StatusFound, h.frontendBase+"/login?token="+token)
 }
 
 func (h *AuthHandler) GitHubLogin(c *gin.Context) {
@@ -51,15 +53,15 @@ func (h *AuthHandler) GitHubLogin(c *gin.Context) {
 func (h *AuthHandler) GitHubCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
+		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
 		return
 	}
 	token, _, err := h.auth.HandleGitHubCallback(c.Request.Context(), code)
 	if err != nil {
-		c.Redirect(http.StatusFound, "http://localhost:5178/login?error=1")
+		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
 		return
 	}
-	c.Redirect(http.StatusFound, "http://localhost:5178/login?token="+token)
+	c.Redirect(http.StatusFound, h.frontendBase+"/login?token="+token)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

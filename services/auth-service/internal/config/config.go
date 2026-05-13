@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Port             string
+	FrontendURL      string
 	GoogleClientID   string
 	GoogleSecret     string
 	GoogleCallback   string
@@ -25,6 +26,7 @@ func Load() Config {
 
 	return Config{
 		Port:           getEnv("PORT", "3001"),
+		FrontendURL:    getEnv("FRONTEND_URL", "http://localhost:5178"),
 		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleSecret:   os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GoogleCallback: os.Getenv("GOOGLE_CALLBACK_URL"),

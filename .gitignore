@@ -23,6 +23,7 @@ services/**/dist/
 # Keys (never commit private keys)
 **/keys/private.pem
 **/keys/*.pem
+api-gateway/certs/
 
 # Test reports
 tests/load/results/

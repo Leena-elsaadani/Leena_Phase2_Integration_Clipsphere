@@ -1,0 +1,87 @@
+@startuml
+!theme plain
+skinparam componentStyle rectangle
+skinparam node {
+    BackgroundColor white
+    BorderColor black
+}
+
+title System Deployment Model (Azure Cloud)
+
+actor "User" as user
+
+cloud "Internet" {
+    node "Public Endpoint" {
+        port "443 (HTTPS)" as p443
+    }
+}
+
+node "Azure Cloud Environment" {
+    component "Azure Application Gateway / Azure Front Door\n(Single Entry Point)" as appgw
+    
+    node "Virtual Network (VNet)" {
+        node "Private Subnets" {
+            component "API Gateway\n(NGINX)" as apigw
+            
+            node "Azure Container Apps" {
+                component "Auth Service" as auth
+                component "User Service" as usersvc
+                component "Chat Service" as chat
+                component "Dashboard Service" as dashboard
+            }
+            
+            node "Monitoring Container Group" {
+                component "Prometheus" as prometheus
+                component "Grafana" as grafana
+            }
+        }
+        
+        node "Managed Data Services" {
+            database "Azure Database for PostgreSQL\nFlexible Server" as postgres
+            database "MongoDB Atlas /\nAzure Cosmos DB for MongoDB" as mongo
+            database "Azure Cache for Redis" as redis
+            queue "Azure Service Bus" as asb
+            database "Azure OpenSearch /\nAzure VM (Self-hosted OpenSearch)" as os
+        }
+    }
+}
+
+user --> p443 : HTTPS Requests
+p443 --> appgw
+appgw --> apigw : Routes to API Gateway
+apigw --> auth : Routes
+apigw --> usersvc : Routes
+apigw --> chat : Routes
+apigw --> dashboard : Routes
+
+auth --> postgres : Reads/Writes
+usersvc --> postgres : Reads/Writes
+chat --> mongo : Messages
+chat --> redis : Caching/PubSub
+chat --> asb : Events
+chat --> os : Search Indexing
+dashboard --> os : Analytics/Dashboards
+
+prometheus -up-> auth : Scrapes Metrics
+prometheus -up-> usersvc : Scrapes Metrics
+prometheus -up-> chat : Scrapes Metrics
+prometheus -up-> dashboard : Scrapes Metrics
+grafana -right-> prometheus : Visualizes Data
+
+note right of asb
+  Note: Self-hosted RabbitMQ 
+  is used in the Dev environment.
+end note
+
+legend bottom
+  |= Component |= Dev Environment |= Production (Azure) |
+  | Microservices | Docker Containers | Azure Container Apps |
+  | PostgreSQL | Local PostgreSQL Container | Azure DB for PostgreSQL Flexible Server |
+  | MongoDB | Local MongoDB Container | MongoDB Atlas / Cosmos DB for MongoDB |
+  | Redis | Local Redis Container | Azure Cache for Redis |
+  | Message Broker | Local RabbitMQ Container | Azure Service Bus |
+  | Search | Local OpenSearch Container | Azure OpenSearch / Azure VM |
+  | Entry Point | Local NGINX Container | Application Gateway + NGINX |
+endlegend
+
+@enduml
