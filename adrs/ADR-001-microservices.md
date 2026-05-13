@@ -29,6 +29,12 @@ An API Gateway serves as the single entry point for all client traffic.
 - Network latency on inter-service calls compared to in-process calls
 - Requires API Gateway and distributed tracing for observability
 
+## Resilience Strategy
+- Retry policy uses exponential backoff for transient failures: 100ms, 200ms, 400ms.
+- Chat service RabbitMQ publishing supports an in-memory circuit breaker that opens after 5 failures and retries after 30 seconds.
+- User service database resilience includes connection pool limits and connection lifetime controls.
+- Auth service retries OAuth token exchange only on network errors, with a 5 second total timeout.
+
 ## Alternatives Considered
 - **Monolith** — Rejected. Cannot scale Chat and Dashboard independently. Single point of failure.
 - **Serverless** — Rejected. Cold start latency is incompatible with real-time WebSocket chat.

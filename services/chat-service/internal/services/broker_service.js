@@ -1,6 +1,12 @@
 const amqp = require("amqplib");
 
 let channel;
+const circuit = {
+  failureCount: 0,
+  state: "CLOSED",
+  lastFailureTime: 0,
+  testInProgress: false,
+};
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,25 +32,85 @@ async function connectBroker() {
   throw lastErr;
 }
 
+const OPEN_THRESHOLD = 5;
+const OPEN_TIMEOUT_MS = 30000;
+
+function openCircuit() {
+  circuit.failureCount = 0;
+  circuit.state = "OPEN";
+  circuit.lastFailureTime = Date.now();
+  circuit.testInProgress = false;
+}
+
+function resetCircuit() {
+  circuit.failureCount = 0;
+  circuit.state = "CLOSED";
+  circuit.lastFailureTime = 0;
+  circuit.testInProgress = false;
+}
+
+function allowRequest() {
+  if (circuit.state === "OPEN") {
+    if (Date.now() - circuit.lastFailureTime >= OPEN_TIMEOUT_MS) {
+      if (circuit.testInProgress) {
+        return false;
+      }
+      circuit.state = "HALF_OPEN";
+      circuit.testInProgress = true;
+      return true;
+    }
+    return false;
+  }
+  if (circuit.state === "HALF_OPEN") {
+    return false;
+  }
+  return true;
+}
+
+function handlePublishSuccess() {
+  if (circuit.state === "HALF_OPEN") {
+    resetCircuit();
+    return;
+  }
+  circuit.failureCount = 0;
+}
+
+function handlePublishFailure() {
+  if (circuit.state === "HALF_OPEN") {
+    openCircuit();
+    return;
+  }
+
+  circuit.failureCount += 1;
+  if (circuit.failureCount >= OPEN_THRESHOLD) {
+    openCircuit();
+  }
+}
+
+async function publishEvent(routingKey, payload) {
+  if (!channel || !allowRequest()) return false;
+
+  try {
+    const ok = channel.publish("chat.events", routingKey, Buffer.from(JSON.stringify(payload)), {
+      contentType: "application/json",
+      persistent: true,
+    });
+    await channel.waitForConfirms();
+    handlePublishSuccess();
+    return ok;
+  } catch (err) {
+    handlePublishFailure();
+    return false;
+  }
+}
+
 async function publishMessageCreated(payload) {
-  if (!channel) return false;
-  const ok = channel.publish("chat.events", "message.created", Buffer.from(JSON.stringify(payload)), {
-    contentType: "application/json",
-    persistent: true,
-  });
-  await channel.waitForConfirms();
-  return ok;
+  return publishEvent("message.created", payload);
 }
 
 async function publishUserPresence(payload, connected) {
-  if (!channel) return false;
   const routingKey = connected ? "user.connected" : "user.disconnected";
-  const ok = channel.publish("chat.events", routingKey, Buffer.from(JSON.stringify(payload)), {
-    contentType: "application/json",
-    persistent: true,
-  });
-  await channel.waitForConfirms();
-  return ok;
+  return publishEvent(routingKey, payload);
 }
 
 module.exports = { connectBroker, publishMessageCreated, publishUserPresence };

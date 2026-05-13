@@ -5,9 +5,12 @@ import (
 	"auth-service/internal/repository"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -67,9 +70,29 @@ func (s *AuthService) GoogleLoginURL() string {
 }
 
 func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (string, map[string]any, error) {
-	token, err := s.oauthCfg.Exchange(ctx, code)
-	if err != nil {
-		return "", nil, err
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var token *oauth2.Token
+	var err error
+	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
+
+	for attempt := 0; attempt < len(backoffs); attempt++ {
+		token, err = s.oauthCfg.Exchange(ctx, code)
+		if err == nil {
+			break
+		}
+		if strings.Contains(err.Error(), "invalid_grant") || !isTransientOAuthError(err) {
+			return "", nil, err
+		}
+		if attempt == len(backoffs)-1 {
+			return "", nil, err
+		}
+		select {
+		case <-ctx.Done():
+			return "", nil, ctx.Err()
+		case <-time.After(backoffs[attempt]):
+		}
 	}
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v2/userinfo", nil)
@@ -128,6 +151,18 @@ func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (st
 		"name":  user.Name,
 		"role":  user.Role,
 	}, nil
+}
+
+func isTransientOAuthError(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout() || netErr.Temporary()
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Timeout() || urlErr.Temporary()
+	}
+	return false
 }
 
 func (s *AuthService) Logout(token string) error {
