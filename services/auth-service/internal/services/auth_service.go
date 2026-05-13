@@ -5,9 +5,12 @@ import (
 	"auth-service/internal/repository"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -19,14 +22,14 @@ import (
 )
 
 type AuthService struct {
-	cfg             config.Config
-	userRepo        *repository.UserRepository
-	redis           *RedisService
-	privateKey      []byte
-	publicKey       []byte
-	googleOAuthCfg  *oauth2.Config
-	githubOAuthCfg  *oauth2.Config
-	httpClient      *http.Client
+	cfg            config.Config
+	userRepo       *repository.UserRepository
+	redis          *RedisService
+	privateKey     []byte
+	publicKey      []byte
+	googleOAuthCfg *oauth2.Config
+	githubOAuthCfg *oauth2.Config
+	httpClient     *http.Client
 }
 
 type JWTUser struct {
@@ -78,9 +81,29 @@ func (s *AuthService) GoogleLoginURL() string {
 }
 
 func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (string, map[string]any, error) {
-	token, err := s.googleOAuthCfg.Exchange(ctx, code)
-	if err != nil {
-		return "", nil, err
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var token *oauth2.Token
+	var err error
+	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
+
+	for attempt := 0; attempt < len(backoffs); attempt++ {
+		token, err = s.googleOAuthCfg.Exchange(ctx, code)
+		if err == nil {
+			break
+		}
+		if strings.Contains(err.Error(), "invalid_grant") || !isTransientOAuthError(err) {
+			return "", nil, err
+		}
+		if attempt == len(backoffs)-1 {
+			return "", nil, err
+		}
+		select {
+		case <-ctx.Done():
+			return "", nil, ctx.Err()
+		case <-time.After(backoffs[attempt]):
+		}
 	}
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/oauth2/v2/userinfo", nil)
@@ -91,6 +114,7 @@ func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (st
 		return "", nil, err
 	}
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		return "", nil, fmt.Errorf("google userinfo failed: %s", strings.TrimSpace(string(body)))
@@ -102,6 +126,7 @@ func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (st
 		Name    string `json:"name"`
 		Picture string `json:"picture"`
 	}
+
 	if err := json.Unmarshal(body, &googleUser); err != nil {
 		return "", nil, err
 	}
@@ -124,6 +149,7 @@ func (s *AuthService) HandleGoogleCallback(ctx context.Context, code string) (st
 	if err != nil {
 		return "", nil, err
 	}
+
 	signedToken, err := t.SignedString(private)
 	if err != nil {
 		return "", nil, err
@@ -160,6 +186,7 @@ func (s *AuthService) HandleGitHubCallback(ctx context.Context, code string) (st
 		return "", nil, err
 	}
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		return "", nil, fmt.Errorf("github userinfo failed: %s", strings.TrimSpace(string(body)))
@@ -172,6 +199,7 @@ func (s *AuthService) HandleGitHubCallback(ctx context.Context, code string) (st
 		Login     string `json:"login"`
 		AvatarURL string `json:"avatar_url"`
 	}
+
 	if err := json.Unmarshal(body, &githubUser); err != nil {
 		return "", nil, err
 	}
@@ -205,6 +233,7 @@ func (s *AuthService) HandleGitHubCallback(ctx context.Context, code string) (st
 	if err != nil {
 		return "", nil, err
 	}
+
 	signedToken, err := t.SignedString(private)
 	if err != nil {
 		return "", nil, err
@@ -232,6 +261,7 @@ func (s *AuthService) fetchPrimaryGitHubEmail(ctx context.Context, accessToken s
 		return "", err
 	}
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		return "", fmt.Errorf("github emails failed: %s", strings.TrimSpace(string(body)))
@@ -242,6 +272,7 @@ func (s *AuthService) fetchPrimaryGitHubEmail(ctx context.Context, accessToken s
 		Primary  bool   `json:"primary"`
 		Verified bool   `json:"verified"`
 	}
+
 	if err := json.Unmarshal(body, &emails); err != nil {
 		return "", err
 	}
@@ -261,6 +292,18 @@ func (s *AuthService) fetchPrimaryGitHubEmail(ctx context.Context, accessToken s
 	}
 
 	return "", nil
+}
+
+func isTransientOAuthError(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout() || netErr.Temporary()
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Timeout() || urlErr.Temporary()
+	}
+	return false
 }
 
 func (s *AuthService) Logout(token string) error {
@@ -297,15 +340,18 @@ func (s *AuthService) ValidateToken(token string) (map[string]any, string, error
 	if err != nil {
 		return nil, "Invalid token", err
 	}
+
 	parsed, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
 		return public, nil
 	}, jwt.WithValidMethods([]string{"RS256"}))
+
 	if err != nil {
 		if strings.Contains(err.Error(), "expired") {
 			return nil, "Token expired", err
 		}
 		return nil, "Invalid token", err
 	}
+
 	if !parsed.Valid {
 		return nil, "Invalid token", fmt.Errorf("invalid token")
 	}
@@ -318,6 +364,7 @@ func (s *AuthService) ValidateToken(token string) (map[string]any, string, error
 	if !ok {
 		return nil, "Invalid token", fmt.Errorf("invalid claims")
 	}
+
 	return claims, "", nil
 }
 

@@ -1,7 +1,14 @@
 package repository
 
 import (
+	"errors"
+	"net"
+	"strings"
+	"time"
+
 	"user-service/internal/models"
+
+	"database/sql/driver"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -12,7 +19,48 @@ type UserRepository struct {
 }
 
 func NewUserRepository(db *gorm.DB) *UserRepository {
+	if sqlDB, err := db.DB(); err == nil {
+		sqlDB.SetMaxOpenConns(25)
+		sqlDB.SetMaxIdleConns(5)
+		sqlDB.SetConnMaxLifetime(5 * time.Minute)
+	}
 	return &UserRepository{db: db}
+}
+
+func (r *UserRepository) withRetry(fn func() error) error {
+	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
+	for i, delay := range backoffs {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if !isTransientDBError(err) || i == len(backoffs)-1 {
+			return err
+		}
+		time.Sleep(delay)
+	}
+	return nil
+}
+
+func (r *UserRepository) SaveWithRetry(value any) error {
+	return r.withRetry(func() error {
+		return r.db.Save(value).Error
+	})
+}
+
+func isTransientDBError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, driver.ErrBadConn) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout() || netErr.Temporary()
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "connection refused") || strings.Contains(lower, "connection reset") || strings.Contains(lower, "broken pipe")
 }
 
 func (r *UserRepository) FindAll(search string, limit, offset int) ([]models.User, error) {
@@ -28,7 +76,9 @@ func (r *UserRepository) FindAll(search string, limit, offset int) ([]models.Use
 
 func (r *UserRepository) FindByID(id string) (*models.User, error) {
 	var u models.User
-	err := r.db.Table("users").Select("id, email, name, avatar, role, created_at").Where("id = ?", id).First(&u).Error
+	err := r.withRetry(func() error {
+		return r.db.Table("users").Select("id, email, name, avatar, role, created_at").Where("id = ?", id).First(&u).Error
+	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
