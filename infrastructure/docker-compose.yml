@@ -20,14 +20,16 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: appdb
+      PGDATA: /var/lib/postgresql/data
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -165,12 +167,6 @@ services:
       - redis
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9121/metrics | head -n 1 || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
 
   opensearch:
     image: opensearchproject/opensearch:2
@@ -192,26 +188,18 @@ services:
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.13.0
-    restart: unless-stopped
     user: root
-    environment:
-      - ELASTICSEARCH_HOSTS=http://opensearch:9200
-      - ELASTICSEARCH_USERNAME=admin
-      - ELASTICSEARCH_PASSWORD=admin
+    command: filebeat -e --strict.perms=false
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      - opensearch
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "filebeat test config || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
 
   auth-service:
     build:
@@ -225,6 +213,7 @@ services:
     environment:
       REDIS_URL: redis://redis:6379
       PORT: "8081"
+      POSTGRES_URL: postgresql://admin:secret@postgres:5432/authdb
     volumes:
       - ../keys:/app/keys:ro
     depends_on:
@@ -252,6 +241,7 @@ services:
       - ../services/user-service/.env
     environment:
       PORT: "8082"
+      POSTGRES_URL: postgresql://admin:secret@postgres:5432/userdb
     volumes:
       - ../keys:/app/keys:ro
     depends_on:
