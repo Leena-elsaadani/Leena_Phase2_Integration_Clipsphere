@@ -37,22 +37,28 @@ describe("chat handler unit", () => {
 
   test("message creation publishes broker event", async () => {
     const { app, deps } = makeApp();
-    const res = await request(app).post("/rooms/r1/messages").send({ userId: "u1", content: "hello" });
-    expect(res.status).toBe(200);
+    // userId must come from x-user-id header (security fix #20), not request body
+    const res = await request(app)
+      .post("/rooms/r1/messages")
+      .set("x-user-id", "u1")
+      .send({ content: "hello" });
+    expect(res.status).toBe(201);
     expect(deps.brokerService.publishMessageCreated).toHaveBeenCalledTimes(1);
     expect(deps.metricsService.incMessages).toHaveBeenCalledTimes(1);
   });
 
-  test("join validation rejects empty userId", async () => {
+  test("join returns 401 when x-user-id header is missing", async () => {
     const { app } = makeApp();
+    // No x-user-id header → 401 Unauthorized (security fix #20)
     const res = await request(app).post("/rooms/r1/join").send({});
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 
-  test("leave validation rejects empty userId", async () => {
+  test("leave returns 401 when x-user-id header is missing", async () => {
     const { app } = makeApp();
+    // No x-user-id header → 401 Unauthorized (security fix #20)
     const res = await request(app).post("/rooms/r1/leave").send({});
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 });
 
