@@ -1,0 +1,72 @@
+version: '3.9'
+# docker-compose.test.yml
+#
+# Spins up ONLY the infrastructure containers needed for integration tests.
+# Application services are started separately by the test runner (Jest / supertest).
+#
+# Usage:
+#   docker compose -f infrastructure/docker-compose.test.yml up -d
+#   npm test
+#   docker compose -f infrastructure/docker-compose.test.yml down -v
+
+networks:
+  test-network:
+    driver: bridge
+
+services:
+
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "5433:5432"          # Different host port to avoid conflict with dev DB
+    networks:
+      - test-network
+    tmpfs:
+      - /var/lib/postgresql/data   # In-memory storage — fast, no disk I/O
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongodb-test:
+    image: mongo:7
+    ports:
+      - "27018:27017"
+    networks:
+      - test-network
+    tmpfs:
+      - /data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq-test:
+    image: rabbitmq:3-alpine
+    ports:
+      - "5673:5672"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
