@@ -34,15 +34,16 @@ export const createReview = async (videoId, userId, reviewData) => {
 
       if (ownerId && ownerId !== userId.toString()) {
         const io = getIO();
-        if (!io) return;
-        io.to(ownerId).emit('notification:review', {
-          type: 'review',
-          actorUsername: actorUsername || 'Someone',
-          videoId: video._id.toString(),
-          videoTitle: video.title,
-          preview: (reviewData.comment || '').slice(0, 80),
-          timestamp: new Date().toISOString(),
-        });
+        if (io) {
+          io.to(ownerId).emit('notification:review', {
+            type: 'review',
+            actorUsername: actorUsername || 'Someone',
+            videoId: video._id.toString(),
+            videoTitle: video.title,
+            preview: (reviewData.comment || '').slice(0, 80),
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
     } catch (socketErr) {
       console.error('[Socket] Failed to emit review notification:', socketErr.message);

@@ -1,4 +1,4 @@
-import { uploadVideo, getPublicFeed, getFollowingFeed, getTrendingFeed, generateVideoURL } from '../services/Videoservice.js';
+import { uploadVideo, getPublicFeed, getFollowingFeed, getTrendingFeed, generateVideoURL, invalidateTrendingCache } from '../services/Videoservice.js';
 import { createReview as createReviewService } from '../services/review.service.js';
 import Video from '../models/video.model.js';
 import Follower from '../models/follower.model.js';
@@ -322,16 +322,22 @@ export const updateVideo = async (req, res, next) => {
       return res.status(404).json({ status: 'error', message: 'Video not found' });
     }
 
-    const { title, description } = req.body;
+    const { title, description, visibility } = req.body;
     const updates = {};
 
     if (typeof title === 'string') updates.title = title;
     if (typeof description === 'string') updates.description = description;
+    if (typeof visibility === 'string' && ['public', 'private', 'flagged'].includes(visibility)) {
+      updates.status = visibility;
+    }
 
     const updatedVideo = await Video.findByIdAndUpdate(video._id, updates, {
       new: true,
       runValidators: true,
     });
+
+    // Invalidate trending feed cache since video visibility or metadata changed
+    await invalidateTrendingCache();
 
     res.status(200).json({
       status: 'success',
@@ -353,24 +359,35 @@ export const deleteVideo = async (req, res, next) => {
 
     const videoId = req.params.id;
 
-    // Delete from MinIO (best-effort; DB deletion should still succeed)
-    if (video.videoKey) {
-      try {
-        await deleteObject(video.videoKey);
-      } catch (s3Err) {
-        console.error('Failed to delete video object from storage:', s3Err.message);
-      }
-    }
+    // Delete from MinIO (best-effort; DB deletion should still succeed to avoid broken states)
+    const storagePromises = [];
+    if (video.videoKey) storagePromises.push(deleteObject(video.videoKey));
+    if (video.thumbnailKey) storagePromises.push(deleteObject(video.thumbnailKey));
+    
+    await Promise.allSettled(storagePromises).then(results => {
+      results.forEach(result => {
+        if (result.status === 'rejected') {
+          console.error('Failed to delete object from storage:', result.reason?.message);
+        }
+      });
+    });
 
-    if (video.thumbnailKey) {
-      try {
-        await deleteObject(video.thumbnailKey);
-      } catch (s3Err) {
-        console.error('Failed to delete thumbnail from storage:', s3Err.message);
-      }
-    }
+    // Avoid partial deletion state: cascade delete DB dependencies (best-effort)
+    const Like = (await import('../models/like.model.js')).default;
+    const Comment = (await import('../models/comment.model.js')).default;
+    const Review = (await import('../models/review.model.js')).default;
 
+    await Promise.allSettled([
+      Like.deleteMany({ video: videoId }),
+      Comment.deleteMany({ video: videoId }),
+      Review.deleteMany({ video: videoId })
+    ]);
+
+    // Finally delete the video record itself
     await Video.findByIdAndDelete(videoId);
+
+    // Invalidate trending cache after removing a video
+    await invalidateTrendingCache();
 
     res.status(200).json({
       status: 'success',

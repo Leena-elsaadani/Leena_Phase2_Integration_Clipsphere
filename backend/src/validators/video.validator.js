@@ -45,6 +45,10 @@ const updateVideoSchema = z.object({
     .max(500, 'Description cannot exceed 500 characters')
     .trim()
     .optional(),
+
+  visibility: z
+    .enum(['public', 'private', 'flagged'])
+    .optional(),
 }).refine(
   (data) => Object.keys(data).length > 0,
   { message: 'Provide at least one field to update' }

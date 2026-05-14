@@ -23,14 +23,15 @@ export const likeVideo = async (videoId, userId) => {
     const liker = await User.findById(userId).select('username');
 
     const io = getIO();
-    if (!io) return;
-    io.to(ownerId).emit('notification:like', {
-      type: 'like',
-      actorUsername: liker?.username || 'Someone',
-      videoId: video._id.toString(),
-      videoTitle: video.title,
-      timestamp: new Date().toISOString(),
-    });
+    if (io) {
+      io.to(ownerId).emit('notification:like', {
+        type: 'like',
+        actorUsername: liker?.username || 'Someone',
+        videoId: video._id.toString(),
+        videoTitle: video.title,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 } catch (socketErr) {
   console.error('[Socket] Failed to emit like notification:', socketErr.message);

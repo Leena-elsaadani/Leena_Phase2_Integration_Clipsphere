@@ -3,7 +3,7 @@ import { sendEngagementEmail } from '../services/email.service.js';
 
 export const startEmailWorker = () => {
   try {
-    emailQueue.process(async (job) => {
+    emailQueue.process('engagement', async (job) => {
       const {
         to,
         recipientUsername,

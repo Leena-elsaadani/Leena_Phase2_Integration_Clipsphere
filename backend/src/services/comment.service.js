@@ -27,15 +27,16 @@ export const addComment = async (videoId, userId, text) => {
 
     if (ownerId && ownerId !== userId.toString()) {
       const io = getIO();
-      if (!io) return;
-      io.to(ownerId).emit('notification:comment', {
-        type: 'comment',
-        actorUsername: actorUsername || 'Someone',
-        videoId: video._id.toString(),
-        videoTitle: video.title,
-        preview: text.slice(0, 80),
-        timestamp: new Date().toISOString(),
-      });
+      if (io) {
+        io.to(ownerId).emit('notification:comment', {
+          type: 'comment',
+          actorUsername: actorUsername || 'Someone',
+          videoId: video._id.toString(),
+          videoTitle: video.title,
+          preview: text.slice(0, 80),
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
   } catch (err) {
     console.error('[Socket] Failed to emit comment notification:', err.message);
