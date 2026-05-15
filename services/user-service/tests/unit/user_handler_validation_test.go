@@ -28,6 +28,10 @@ func (m *userContractMock) Search(q string) ([]map[string]any, error) {
 	m.searchQ = q
 	return []map[string]any{}, nil
 }
+func (m *userContractMock) SearchUsers(query string, limit, offset int) ([]map[string]any, int64, error) {
+	m.searchQ = query
+	return []map[string]any{}, int64(0), nil
+}
 
 func TestUpdateMeRequiresAtLeastOneField(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -51,11 +55,27 @@ func TestSearchPassesQueryToService(t *testing.T) {
 	m := &userContractMock{}
 	h := handlers.NewUserHandler(m)
 	r := gin.New()
-	r.GET("/users/search", h.Search)
+	r.GET("/users/search", h.SearchUsers)
 
 	req := httptest.NewRequest(http.MethodGet, "/users/search?q=ali", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "ali", m.searchQ)
+}
+
+func TestSearchReturnsEmptyUsersArrayWhenNoResults(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	m := &userContractMock{}
+	h := handlers.NewUserHandler(m)
+	r := gin.New()
+	r.GET("/users/search", h.SearchUsers)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/search?q=ali", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"users":[]`)
+	assert.Contains(t, rec.Body.String(), `"total":0`)
+	assert.Contains(t, rec.Body.String(), `"query":"ali"`)
 }

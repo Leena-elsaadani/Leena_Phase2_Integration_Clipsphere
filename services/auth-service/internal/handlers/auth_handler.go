@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -16,8 +17,6 @@ type AuthHandler struct {
 type AuthContract interface {
 	GoogleLoginURL() string
 	HandleGoogleCallback(ctx context.Context, code string, state string) (string, map[string]any, error)
-	GitHubLoginURL() string
-	HandleGitHubCallback(ctx context.Context, code string) (string, map[string]any, error)
 	Logout(token string) error
 	ValidateToken(token string) (map[string]any, string, error)
 	PublicKey() string
@@ -40,24 +39,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	state := c.Query("state")
 	token, _, err := h.auth.HandleGoogleCallback(c.Request.Context(), code, state)
 	if err != nil {
-		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
-		return
-	}
-	c.Redirect(http.StatusFound, h.frontendBase+"/login?token="+token)
-}
-
-func (h *AuthHandler) GitHubLogin(c *gin.Context) {
-	c.Redirect(http.StatusFound, h.auth.GitHubLoginURL())
-}
-
-func (h *AuthHandler) GitHubCallback(c *gin.Context) {
-	code := c.Query("code")
-	if code == "" {
-		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
-		return
-	}
-	token, _, err := h.auth.HandleGitHubCallback(c.Request.Context(), code)
-	if err != nil {
+		fmt.Printf("OAuth Callback Error: %v\n", err)
 		c.Redirect(http.StatusFound, h.frontendBase+"/login?error=1")
 		return
 	}

@@ -28,6 +28,9 @@ func (f *fakeUserService) UpdateMe(_ string, _, _ *string) (map[string]any, erro
 func (f *fakeUserService) UpdateRole(_, _ string) (map[string]any, error) { return f.updateRoleRes, nil }
 func (f *fakeUserService) DeleteByID(_ string) (int64, error)             { return f.deleteCount, nil }
 func (f *fakeUserService) Search(_ string) ([]map[string]any, error)      { return f.searchResult, nil }
+func (f *fakeUserService) SearchUsers(_ string, _ int, _ int) ([]map[string]any, int64, error) {
+	return f.searchResult, int64(len(f.searchResult)), nil
+}
 
 func withJWT(role, sub string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -47,7 +50,7 @@ func setupUserRouter(svc *fakeUserService) *gin.Engine {
 	users.PATCH("/:id/role", withJWT("admin", "admin-uuid-1"), h.UpdateRole)
 	users.DELETE("/:id", withJWT("admin", "admin-uuid-1"), h.DeleteUser)
 	users.GET("", withJWT("admin", "admin-uuid-1"), h.ListUsers)
-	users.GET("/search", withJWT("user", "user-uuid-1"), h.Search)
+	users.GET("/search", withJWT("user", "user-uuid-1"), h.SearchUsers)
 	r.GET("/health", h.Health)
 	return r
 }

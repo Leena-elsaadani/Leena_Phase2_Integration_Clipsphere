@@ -14,31 +14,37 @@ circuit_breaker_state_changes_total = Counter(
 )
 
 
+import threading
+
 class CircuitBreaker:
     def __init__(self, threshold: int = 3, cooldown_seconds: int = 10) -> None:
         self.threshold = threshold
         self.cooldown_seconds = cooldown_seconds
         self.failures = 0
         self.opened_at: float | None = None
+        self._lock = threading.Lock()
 
     def can_call(self) -> bool:
-        if self.opened_at is None:
-            return True
-        return (time.time() - self.opened_at) >= self.cooldown_seconds
+        with self._lock:
+            if self.opened_at is None:
+                return True
+            return (time.time() - self.opened_at) >= self.cooldown_seconds
 
     def on_success(self) -> None:
-        was_open = self.opened_at is not None
-        self.failures = 0
-        self.opened_at = None
+        with self._lock:
+            was_open = self.opened_at is not None
+            self.failures = 0
+            self.opened_at = None
         if was_open:
             circuit_breaker_state_changes_total.labels("closed").inc()
 
     def on_failure(self) -> None:
-        self.failures += 1
-        if self.failures >= self.threshold:
-            if self.opened_at is None:
-                circuit_breaker_state_changes_total.labels("open").inc()
-            self.opened_at = time.time()
+        with self._lock:
+            self.failures += 1
+            if self.failures >= self.threshold:
+                if self.opened_at is None:
+                    circuit_breaker_state_changes_total.labels("open").inc()
+                self.opened_at = time.time()
 
 
 async def fetch_with_retry(url: str, breaker: CircuitBreaker) -> dict[str, Any]:

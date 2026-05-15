@@ -27,9 +27,9 @@ func NewRouter(cfg config.Config, userSvc *services.UserService) *gin.Engine {
 
 	users := r.Group("/users")
 	{
-		users.GET("/me", jwtMW.VerifyJWT(), h.GetMe)
-		users.PATCH("/me", jwtMW.VerifyJWT(), h.UpdateMe)
-		users.GET("/search", jwtMW.VerifyJWT(), h.Search)
+		users.GET("/me", jwtMW.VerifyJWT(), h.GetProfile)
+		users.PATCH("/me", jwtMW.VerifyJWT(), h.UpdateProfile)
+		users.GET("/search", jwtMW.VerifyJWT(), h.SearchUsers)
 		users.GET("/:id", jwtMW.VerifyJWT(), h.GetByID)
 
 		users.GET("", jwtMW.VerifyJWT(), middleware.RequireRole("admin"), h.ListUsers)

@@ -108,15 +108,7 @@ func (s *AuthService) googleLoginURL(ctx context.Context) (string, error) {
 	return s.oauthCfg.AuthCodeURL(state), nil
 }
 
-// GitHubLoginURL is a stub for AuthContract; full GitHub OAuth is not implemented yet.
-func (s *AuthService) GitHubLoginURL() string {
-	return ""
-}
 
-// HandleGitHubCallback is a stub for AuthContract until GitHub OAuth is implemented.
-func (s *AuthService) HandleGitHubCallback(_ context.Context, _ string) (string, map[string]any, error) {
-	return "", nil, fmt.Errorf("github oauth not implemented")
-}
 
 // googleUserInfo is the JSON shape returned by Google's userinfo endpoint.
 // Named so JSON unmarshaling and return values share one type (struct tags are part of the type in Go).

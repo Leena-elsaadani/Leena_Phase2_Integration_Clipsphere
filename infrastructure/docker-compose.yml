@@ -241,7 +241,7 @@ services:
       - ../services/user-service/.env
     environment:
       PORT: "8082"
-      POSTGRES_URL: postgresql://admin:secret@postgres:5432/userdb
+      POSTGRES_URL: postgresql://admin:secret@postgres:5432/authdb
     volumes:
       - ../keys:/app/keys:ro
     depends_on:

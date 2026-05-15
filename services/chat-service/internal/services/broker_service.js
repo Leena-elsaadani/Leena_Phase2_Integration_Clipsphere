@@ -105,22 +105,40 @@ async function publishEvent(routingKey, payload) {
   }
 }
 
-async function publishMessageCreated(payload) {
-  const t0 = Date.now();
-  try {
-    const ok = await publishEvent("message.created", payload);
-    if (!ok) {
-      metrics.rabbitmqPublishErrorsTotal.inc();
+async function retryWithBackoff(fn, retries=3, delayMs=500) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch(err) {
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, delayMs * Math.pow(2, i)));
     }
-    return ok;
-  } finally {
-    metrics.rabbitmqPublishDurationSeconds.observe((Date.now() - t0) / 1000);
   }
 }
 
+async function publishMessageCreated(payload) {
+  return retryWithBackoff(async () => {
+    const t0 = Date.now();
+    try {
+      const ok = await publishEvent("message.created", payload);
+      if (!ok) {
+        metrics.rabbitmqPublishErrorsTotal.inc();
+        throw new Error("Publish failed");
+      }
+      return ok;
+    } finally {
+      metrics.rabbitmqPublishDurationSeconds.observe((Date.now() - t0) / 1000);
+    }
+  });
+}
+
 async function publishUserPresence(payload, connected) {
-  const routingKey = connected ? "user.connected" : "user.disconnected";
-  return publishEvent(routingKey, payload);
+  return retryWithBackoff(async () => {
+    const routingKey = connected ? "user.connected" : "user.disconnected";
+    const ok = await publishEvent(routingKey, payload);
+    if (!ok) throw new Error("Publish failed");
+    return ok;
+  });
 }
 
 module.exports = { connectBroker, publishMessageCreated, publishUserPresence };

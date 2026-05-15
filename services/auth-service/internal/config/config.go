@@ -12,9 +12,6 @@ type Config struct {
 	GoogleClientID   string
 	GoogleSecret     string
 	GoogleCallback   string
-	GitHubClientID   string
-	GitHubSecret     string
-	GitHubCallback   string
 	JWTPrivateKey    string
 	JWTPublicKey     string
 	RedisURL         string
@@ -30,9 +27,6 @@ func Load() Config {
 		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleSecret:   os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GoogleCallback: os.Getenv("GOOGLE_CALLBACK_URL"),
-		GitHubClientID: os.Getenv("GITHUB_CLIENT_ID"),
-		GitHubSecret:   os.Getenv("GITHUB_CLIENT_SECRET"),
-		GitHubCallback: os.Getenv("GITHUB_CALLBACK_URL"),
 		JWTPrivateKey:  getEnv("JWT_PRIVATE_KEY_PATH", "./keys/private.pem"),
 		JWTPublicKey:   getEnv("JWT_PUBLIC_KEY_PATH", "./keys/public.pem"),
 		RedisURL:       getEnv("REDIS_URL", "redis://localhost:6379"),

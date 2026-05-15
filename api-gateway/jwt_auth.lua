@@ -30,6 +30,11 @@ key_file:close()
 
 local jwt_obj = jwt:verify(public_key, token)
 if not jwt_obj or not jwt_obj.verified then
+  if jwt_obj and jwt_obj.reason then
+    ngx.log(ngx.ERR, "jwt verification failed: ", jwt_obj.reason)
+  else
+    ngx.log(ngx.ERR, "jwt verification failed: unknown error")
+  end
   return unauthorized("Invalid token")
 end
 
@@ -46,7 +51,10 @@ if expected_iss and expected_iss ~= "" and payload.iss and payload.iss ~= expect
 end
 
 -- Redis blacklist enforcement for logout invalidation
-local token_hash = str.to_hex(ngx.sha256_bin(token))
+local resty_sha256 = require "resty.sha256"
+local digest = resty_sha256:new()
+digest:update(token)
+local token_hash = str.to_hex(digest:final())
 local red = redis:new()
 red:set_timeout(1000)
 local ok, err = red:connect(os.getenv("REDIS_HOST") or "redis", tonumber(os.getenv("REDIS_PORT") or "6379"))
