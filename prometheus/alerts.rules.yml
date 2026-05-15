@@ -1,0 +1,95 @@
+groups:
+  - name: platform.alerts
+    rules:
+
+      # ── 1. ServiceDown ────────────────────────────────────────────────────────
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 1 minute"
+
+      # ── 2. HighErrorRate – auth-service ──────────────────────────────────────
+      - alert: HighErrorRateAuth
+        expr: >
+          rate(auth_http_requests_total{status=~"5.."}[5m])
+          /
+          rate(auth_http_requests_total[5m])
+          > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on auth service"
+          description: >
+            Auth service 5xx error rate is {{ printf "%.2f" $value | humanizePercentage }}
+            over the last 5 minutes (threshold 5%)
+
+      # ── 2. HighErrorRate – user-service ──────────────────────────────────────
+      - alert: HighErrorRateUser
+        expr: >
+          rate(user_http_requests_total{status=~"5.."}[5m])
+          /
+          rate(user_http_requests_total[5m])
+          > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on user service"
+          description: >
+            User service 5xx error rate is {{ printf "%.2f" $value | humanizePercentage }}
+            over the last 5 minutes (threshold 5%)
+
+      # ── 3. HighChatMessageRate ────────────────────────────────────────────────
+      - alert: HighChatMessageRate
+        expr: rate(chat_messages_total[1m]) > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat message rate exceeds 100/min"
+          description: >
+            Chat messages are being sent at {{ printf "%.0f" $value }} msg/s,
+            which extrapolates to more than 100 messages/min (potential spam)
+
+      # ── 4. RedisDown ──────────────────────────────────────────────────────────
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is unreachable"
+          description: "The Redis exporter reports redis_up=0 for more than 30 seconds"
+
+      # ── 5. HighMemoryUsage ────────────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: >
+          (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+          /
+          node_memory_MemTotal_bytes
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 85%"
+          description: >
+            Host memory utilisation is {{ printf "%.1f" $value | humanizePercentage }}
+            (threshold 85%) sustained for more than 5 minutes
+
+      # ── 6. RabbitMQQueueBacklog ───────────────────────────────────────────────
+      - alert: RabbitMQQueueBacklog
+        expr: rabbitmq_queue_messages > 1000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RabbitMQ queue has more than 1000 unprocessed messages"
+          description: >
+            Queue {{ $labels.queue }} on vhost {{ $labels.vhost }} has
+            {{ printf "%.0f" $value }} unprocessed messages (threshold 1000)

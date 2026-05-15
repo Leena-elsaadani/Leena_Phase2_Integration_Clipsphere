@@ -1,0 +1,65 @@
+# prometheus.yml
+# Prometheus scrape configuration.
+# Prometheus polls each /metrics endpoint every 15 seconds.
+# All services expose metrics via prom-client (Node.js),
+# prometheus-fastapi-instrumentator (Python/FastAPI), or
+# prometheus/client_golang (Go/Gin).
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  scrape_timeout:      10s
+
+# ── Rule files ────────────────────────────────────────────────────────────────
+rule_files:
+  - /etc/prometheus/alerts.rules.yml
+
+# ── Alerting ──────────────────────────────────────────────────────────────────
+# Uncomment when Alertmanager is added:
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+
+# ── Scrape configs ────────────────────────────────────────────────────────────
+scrape_configs:
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8081']
+    metrics_path: '/metrics'
+
+  - job_name: 'chat-service'
+    static_configs:
+      - targets: ['chat-service:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:8082']
+    metrics_path: '/metrics'
+
+  - job_name: 'dashboard-service'
+    static_configs:
+      - targets: ['dashboard-service:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: '/metrics'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: '/metrics'
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+    metrics_path: '/metrics'
