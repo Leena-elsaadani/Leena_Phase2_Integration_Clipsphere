@@ -8,11 +8,16 @@ import (
 )
 
 type UserService struct {
-	repo *repository.UserRepository
+	repo repository.UserRepositoryInterface
 }
 
 func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{repo: repository.NewUserRepository(db)}
+}
+
+// NewUserServiceWithRepo allows dependency injection for testing
+func NewUserServiceWithRepo(repo repository.UserRepositoryInterface) *UserService {
+	return &UserService{repo: repo}
 }
 
 func (s *UserService) ListUsers(q, pageRaw, limitRaw string) (map[string]any, error) {
@@ -32,11 +37,21 @@ func (s *UserService) ListUsers(q, pageRaw, limitRaw string) (map[string]any, er
 	return map[string]any{"users": users, "page": page, "limit": limit}, nil
 }
 
-func (s *UserService) GetProfile(id string) (any, error) {
-	return s.repo.FindByID(id)
+func (s *UserService) GetByID(id string) (any, error) {
+	user, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+	// Return untyped nil when user not found so the handler's
+	// "if user == nil" check works correctly. Returning a typed
+	// (*models.User)(nil) wrapped in any is NOT equal to nil.
+	if user == nil {
+		return nil, nil
+	}
+	return user, nil
 }
 
-func (s *UserService) UpdateProfile(id string, name, avatar *string) (map[string]any, error) {
+func (s *UserService) UpdateMe(id string, name, avatar *string) (map[string]any, error) {
 	return s.repo.UpdateProfile(id, name, avatar)
 }
 
@@ -50,23 +65,4 @@ func (s *UserService) DeleteByID(id string) (int64, error) {
 
 func (s *UserService) Search(q string) ([]map[string]any, error) {
 	return s.repo.Search(q)
-}
-
-func (s *UserService) SearchUsers(query string, limit, offset int) ([]map[string]any, int64, error) {
-	users, err := s.repo.FindAll(query, limit, offset)
-	if err != nil {
-		return nil, 0, err
-	}
-	result := make([]map[string]any, 0, len(users))
-	for _, u := range users {
-		result = append(result, map[string]any{
-			"id":         u.ID,
-			"email":      u.Email,
-			"name":       u.Name,
-			"avatarUrl":  u.Avatar,
-			"role":       u.Role,
-			"created_at": u.CreatedAt,
-		})
-	}
-	return result, int64(len(result)), nil
 }
