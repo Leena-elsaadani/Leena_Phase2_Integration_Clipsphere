@@ -8,11 +8,16 @@ import (
 )
 
 type UserService struct {
-	repo *repository.UserRepository
+	repo repository.UserRepositoryInterface
 }
 
 func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{repo: repository.NewUserRepository(db)}
+}
+
+// NewUserServiceWithRepo allows dependency injection for testing
+func NewUserServiceWithRepo(repo repository.UserRepositoryInterface) *UserService {
+	return &UserService{repo: repo}
 }
 
 func (s *UserService) ListUsers(q, pageRaw, limitRaw string) (map[string]any, error) {
@@ -33,7 +38,17 @@ func (s *UserService) ListUsers(q, pageRaw, limitRaw string) (map[string]any, er
 }
 
 func (s *UserService) GetByID(id string) (any, error) {
-	return s.repo.FindByID(id)
+	user, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+	// Return untyped nil when user not found so the handler's
+	// "if user == nil" check works correctly. Returning a typed
+	// (*models.User)(nil) wrapped in any is NOT equal to nil.
+	if user == nil {
+		return nil, nil
+	}
+	return user, nil
 }
 
 func (s *UserService) UpdateMe(id string, name, avatar *string) (map[string]any, error) {

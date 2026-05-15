@@ -35,6 +35,8 @@ function attachWebSocket(server, port) {
       }
     });
   });
+
+  return wss;
 }
 
 function broadcastToRoom(roomId, payload) {

@@ -1,0 +1,321 @@
+# ============================================================================
+# CI — Automated Test & Coverage Pipeline
+#
+# Runs on every push to main/develop and on every pull request.
+# Four parallel jobs cover all four microservices:
+#
+#   test-auth-service      Go  — auth-service      threshold ≥ 80 %
+#   test-user-service      Go  — user-service       threshold ≥ 70 %
+#   test-chat-service      JS  — chat-service       threshold ≥ 50 %
+#   test-dashboard-service Py  — dashboard-service  threshold ≥ 50 %
+#
+# Integration tests that require Docker (testcontainers-go, real Postgres/Redis)
+# are intentionally excluded from all jobs; only unit-testable packages are run.
+# ============================================================================
+
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Cancel any in-progress run for the same ref so stale runs don't block PRs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ============================================================================
+# AUTH SERVICE — Go
+# ============================================================================
+jobs:
+  test-auth-service:
+    name: Auth Service (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/auth-service
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Go toolchain ────────────────────────────────────────────────────────
+      # go-version-file reads the `go` directive from go.mod (1.25.0).
+      # setup-go will install that toolchain if not already cached.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: services/auth-service/go.mod
+          cache: true
+          cache-dependency-path: services/auth-service/go.sum
+
+      # ── Dependencies ────────────────────────────────────────────────────────
+      - name: Download modules
+        run: go mod download
+
+      # ── Unit tests + coverage ───────────────────────────────────────────────
+      # Only the packages that do NOT need Docker are listed explicitly.
+      # ./tests/integration imports testcontainers-go which would attempt to
+      # pull a PostgreSQL + Redis image — excluded here on purpose.
+      - name: Run unit tests
+        run: |
+          go test \
+            -coverprofile=coverage.out \
+            -covermode=atomic \
+            -timeout=120s \
+            ./internal/handlers/... \
+            ./internal/services/... \
+            ./tests/unit/...
+
+      # ── Coverage summary ────────────────────────────────────────────────────
+      - name: Print coverage summary
+        run: go tool cover -func=coverage.out
+
+      # ── Threshold enforcement ── Auth ≥ 80 % ────────────────────────────────
+      # `go tool cover -func` prints a final line:
+      #   total:   (statements)   82.2%
+      # We extract the percentage, strip the '%', and compare with bc.
+      - name: Enforce coverage threshold (≥ 80%)
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out \
+            | awk '/^total:/ { gsub(/%/,"",$3); print $3 }')
+          echo "Total coverage: ${COVERAGE}%"
+          PASS=$(echo "${COVERAGE} >= 80.0" | bc -l)
+          if [ "$PASS" -ne 1 ]; then
+            echo "❌  Auth service coverage ${COVERAGE}% is below the required 80%."
+            exit 1
+          fi
+          echo "✅  Auth service coverage ${COVERAGE}% meets the 80% threshold."
+
+      # ── Artifacts ───────────────────────────────────────────────────────────
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-coverage
+          path: services/auth-service/coverage.out
+          retention-days: 14
+
+# ============================================================================
+# USER SERVICE — Go
+# ============================================================================
+  test-user-service:
+    name: User Service (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/user-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: services/user-service/go.mod
+          cache: true
+          cache-dependency-path: services/user-service/go.sum
+
+      - name: Download modules
+        run: go mod download
+
+      # The user-service integration test (tests/integration/user_crud_test.go)
+      # spins up a real PostgreSQL 16 container via testcontainers-go; excluded.
+      # The following packages are fully unit-testable without any Docker daemon:
+      #   internal/handlers  — uses httptest + fakeUserService stub
+      #   internal/middleware — uses httptest only
+      #   internal/services  — uses MockUserRepository (testify/mock)
+      #   tests/unit         — same mocks, no external deps
+      - name: Run unit tests
+        run: |
+          go test \
+            -coverprofile=coverage.out \
+            -covermode=atomic \
+            -timeout=120s \
+            ./internal/handlers/... \
+            ./internal/middleware/... \
+            ./internal/services/... \
+            ./tests/unit/...
+
+      - name: Print coverage summary
+        run: go tool cover -func=coverage.out
+
+      # ── Threshold enforcement ── User ≥ 70 % ────────────────────────────────
+      - name: Enforce coverage threshold (≥ 70%)
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out \
+            | awk '/^total:/ { gsub(/%/,"",$3); print $3 }')
+          echo "Total coverage: ${COVERAGE}%"
+          PASS=$(echo "${COVERAGE} >= 70.0" | bc -l)
+          if [ "$PASS" -ne 1 ]; then
+            echo "❌  User service coverage ${COVERAGE}% is below the required 70%."
+            exit 1
+          fi
+          echo "✅  User service coverage ${COVERAGE}% meets the 70% threshold."
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-service-coverage
+          path: services/user-service/coverage.out
+          retention-days: 14
+
+# ============================================================================
+# CHAT SERVICE — Node.js / Jest
+# ============================================================================
+  test-chat-service:
+    name: Chat Service (Node.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/chat-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: services/chat-service/package-lock.json
+
+      # ── Dependencies ────────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Tests + coverage ─────────────────────────────────────────────────────
+      # --ci           : fail immediately on test failures (no interactive prompts)
+      # --coverage     : emit lcov, json-summary, and clover reports under coverage/
+      # --runInBand    : run test suites serially (set in package.json scripts.test,
+      #                  repeated here explicitly for the coverage invocation)
+      # --forceExit    : ensure Jest exits even if open handles remain (MongoDB
+      #                  memory server occasionally keeps the process alive)
+      - name: Run tests with coverage
+        run: |
+          npx jest \
+            --ci \
+            --coverage \
+            --runInBand \
+            --forceExit \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary \
+            --coverageReporters=text
+
+      # ── Threshold enforcement ── Chat ≥ 50 % ────────────────────────────────
+      # Jest writes coverage/coverage-summary.json with a shape like:
+      #   { "total": { "statements": { "pct": 83.5 }, ... } }
+      # We read the "lines" percentage — a reliable proxy for overall coverage —
+      # and fail the build if it is below 50.
+      - name: Enforce coverage threshold (≥ 50%)
+        run: |
+          COVERAGE=$(node -e "
+            const s = require('./coverage/coverage-summary.json');
+            process.stdout.write(String(s.total.lines.pct));
+          ")
+          echo "Total line coverage: ${COVERAGE}%"
+          PASS=$(node -e "process.exit(parseFloat('${COVERAGE}') >= 50 ? 0 : 1)")
+          if [ $? -ne 0 ]; then
+            echo "❌  Chat service coverage ${COVERAGE}% is below the required 50%."
+            exit 1
+          fi
+          echo "✅  Chat service coverage ${COVERAGE}% meets the 50% threshold."
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-service-coverage
+          path: |
+            services/chat-service/coverage/lcov.info
+            services/chat-service/coverage/coverage-summary.json
+          retention-days: 14
+
+# ============================================================================
+# DASHBOARD SERVICE — Python / pytest
+# ============================================================================
+  test-dashboard-service:
+    name: Dashboard Service (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/dashboard-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            services/dashboard-service/requirements.txt
+            services/dashboard-service/tests/requirements-test.txt
+
+      # ── Dependencies ────────────────────────────────────────────────────────
+      # Install both runtime deps and test-only deps in one pass so pip can
+      # resolve any conflicts upfront.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements-test.txt
+
+      # ── Tests + coverage ─────────────────────────────────────────────────────
+      # --asyncio-mode=auto  : required for pytest-asyncio 1.x with async tests
+      # --cov=internal       : measure coverage only over the application source
+      # --cov-report=term-missing : print uncovered lines to the log
+      # --cov-report=xml     : write coverage.xml for artifact upload
+      # -p no:cacheprovider  : skip .pytest_cache writes (keeps runner clean)
+      - name: Run tests with coverage
+        run: |
+          pytest tests/unit/ \
+            --asyncio-mode=auto \
+            --cov=internal \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            -p no:cacheprovider \
+            -v
+
+      # ── Threshold enforcement ── Dashboard ≥ 50 % ───────────────────────────
+      # coverage.xml contains an attribute `line-rate` on the root <coverage>
+      # element whose value is a decimal fraction (0.80 == 80 %).
+      # We multiply by 100 and compare against the threshold.
+      - name: Enforce coverage threshold (≥ 50%)
+        run: |
+          LINE_RATE=$(python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          print(root.attrib['line-rate'])
+          ")
+          COVERAGE=$(python -c "print(round(float('${LINE_RATE}') * 100, 2))")
+          echo "Total coverage: ${COVERAGE}%"
+          python -c "
+          import sys
+          cov = float('${COVERAGE}')
+          if cov < 50.0:
+              print(f'❌  Dashboard service coverage {cov}% is below the required 50%.')
+              sys.exit(1)
+          print(f'✅  Dashboard service coverage {cov}% meets the 50% threshold.')
+          "
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-service-coverage
+          path: services/dashboard-service/coverage.xml
+          retention-days: 14
