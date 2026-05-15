@@ -59,9 +59,7 @@ func isTransientDBError(err error) bool {
 		return netErr.Timeout() || netErr.Temporary()
 	}
 	lower := strings.ToLower(err.Error())
-	return strings.Contains(lower, "connection refused") ||
-		strings.Contains(lower, "connection reset") ||
-		strings.Contains(lower, "broken pipe")
+	return strings.Contains(lower, "connection refused") || strings.Contains(lower, "connection reset") || strings.Contains(lower, "broken pipe")
 }
 
 func (r *UserRepository) FindAll(search string, limit, offset int) ([]models.User, error) {
@@ -78,11 +76,10 @@ func (r *UserRepository) FindAll(search string, limit, offset int) ([]models.Use
 func (r *UserRepository) FindByID(id string) (*models.User, error) {
 	var u models.User
 	err := r.withRetry(func() error {
-		return r.db.Table("users").Select("id, email, name, avatar, role, created_at").Where(
-			"id = ?", id).First(&u).Error
+		return r.db.Table("users").Select("id, email, name, avatar, role, created_at").Where("id = ?", id).First(&u).Error
 	})
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, err
@@ -103,9 +100,7 @@ func (r *UserRepository) UpdateProfile(id string, name, avatar *string) (map[str
 	}
 	updates["updated_at"] = gorm.Expr("NOW()")
 
-	// Split into two queries: Updates then fetch.
-	// Chaining .Updates().Scan() with RETURNING causes a reflect panic in GORM
-	// because the statement's ReflectValue is unaddressable after Updates executes.
+	// Step 1: execute the UPDATE and check rows affected
 	res := r.db.Table("users").Where("id = ?", id).Updates(updates)
 	if res.Error != nil {
 		return nil, res.Error
@@ -114,30 +109,22 @@ func (r *UserRepository) UpdateProfile(id string, name, avatar *string) (map[str
 		return nil, nil
 	}
 
-	var row struct {
-		ID     string `json:"id"`
-		Email  string `json:"email"`
-		Name   string `json:"name"`
-		Avatar string `json:"avatar"`
-		Role   string `json:"role"`
-	}
-	if err := r.db.Table("users").
-		Select("id, email, name, avatar, role").
-		Where("id = ?", id).
-		Scan(&row).Error; err != nil {
+	// Step 2: SELECT the updated row so we return fresh data
+	var u models.User
+	if err := r.db.Table("users").Select("id, email, name, avatar, role, created_at").Where("id = ?", id).First(&u).Error; err != nil {
 		return nil, err
 	}
 	return map[string]any{
-		"id":     row.ID,
-		"email":  row.Email,
-		"name":   row.Name,
-		"avatar": row.Avatar,
-		"role":   row.Role,
+		"id":       u.ID,
+		"email":    u.Email,
+		"name":     u.Name,
+		"avatarUrl": u.Avatar,
+		"role":     u.Role,
+		"created_at": u.CreatedAt,
 	}, nil
 }
 
 func (r *UserRepository) UpdateRole(id, role string) (map[string]any, error) {
-	// Same fix: split Updates and fetch into separate queries.
 	res := r.db.Table("users").Where("id = ?", id).Updates(map[string]any{
 		"role":       role,
 		"updated_at": gorm.Expr("NOW()"),
@@ -148,23 +135,11 @@ func (r *UserRepository) UpdateRole(id, role string) (map[string]any, error) {
 	if res.RowsAffected == 0 {
 		return nil, nil
 	}
-
-	var row struct {
-		ID    string `json:"id"`
-		Email string `json:"email"`
-		Role  string `json:"role"`
-	}
-	if err := r.db.Table("users").
-		Select("id, email, role").
-		Where("id = ?", id).
-		Scan(&row).Error; err != nil {
+	var u models.User
+	if err := r.db.Table("users").Select("id, email, role").Where("id = ?", id).First(&u).Error; err != nil {
 		return nil, err
 	}
-	return map[string]any{
-		"id":    row.ID,
-		"email": row.Email,
-		"role":  row.Role,
-	}, nil
+	return map[string]any{"id": u.ID, "email": u.Email, "role": u.Role}, nil
 }
 
 func (r *UserRepository) DeleteByID(id string) (int64, error) {
@@ -175,8 +150,6 @@ func (r *UserRepository) DeleteByID(id string) (int64, error) {
 func (r *UserRepository) Search(q string) ([]map[string]any, error) {
 	var rows []map[string]any
 	like := "%" + q + "%"
-	err := r.db.Table("users").Select("id, email, name, avatar").
-		Where("name ILIKE ? OR email ILIKE ?", like, like).
-		Limit(20).Find(&rows).Error
+	err := r.db.Table("users").Select("id, email, name, avatar").Where("name ILIKE ? OR email ILIKE ?", like, like).Limit(20).Find(&rows).Error
 	return rows, err
 }

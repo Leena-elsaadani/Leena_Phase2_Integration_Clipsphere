@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 const metrics = require("../services/metrics_service");
 
 const socketsByRoom = new Map();
@@ -140,9 +140,6 @@ function toMessageDto(msg) {
 }
 
 module.exports = {
-  ensureRoom,
-  toRoomDto,
-  toMessageDto,
   socketsByRoom,
   activeMembers,
   connectMongo,
@@ -155,8 +152,3 @@ module.exports = {
   deleteMessage,
   listRooms,
 };
-
-
-
-
-
